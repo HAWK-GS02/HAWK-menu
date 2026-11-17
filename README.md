@@ -1,0 +1,195 @@
+# HAWK Cross — Console (Gerenciamento, Simulação e Modelagem Matemática)
+
+Aplicação integrada de console em Python para gerenciamento de cruzamentos semafóricos adaptativos, simulação de travessias acessíveis, persistência local e modelagem matemática (cálculo de limites, derivadas, integrais e filas de tráfego).
+
+> **Aviso Legal e Limites do Projeto:**  
+> Este software é uma **proposta acadêmica** desenvolvida para as disciplinas de *Computational Thinking with Python* e *Matemática*.  
+> - **NÃO** controla semáforos reais e não deve ser implantado em vias públicas.  
+> - **NÃO** comanda abertura de sinais (apenas registra/simula eventos e consulta métricas).  
+> - **NÃO** realiza reconhecimento facial, biometria nem rastreamento ou classificação individual de pessoas.  
+> - **NÃO** é um sistema homologado ou certificado para segurança viária.  
+> - Todos os dados de simulação são explicitamente identificados (`origem = "simulacao_console"`).
+
+---
+
+## Proposta de Valor
+
+> *"A infraestrutura urbana deve se adaptar às pessoas, e não exigir que todas as pessoas se adaptem ao mesmo ritmo."*
+
+O **HAWK Cross** monitora a ocupação da faixa de pedestres durante a fase de verde e **estende dinamicamente o tempo de proteção** quando um pedestre vulnerável (idoso, cadeirante, pessoa com deficiência ou criança) necessita de tempo adicional para concluir a travessia com total segurança.
+
+---
+
+## Requisitos do Sistema
+
+- **Python:** Versão estável mais recente (mínimo Python 3.10 para suporte pleno a `match/case`).
+- **Dependências Externas:** Somente `requests` e `matplotlib` (declaradas em `requirements.txt`).
+- **Sem bibliotecas matemáticas pesadas:** Modelagem realizada em Python padrão puro (sem `numpy`, `scipy` ou `sympy`).
+
+---
+
+## Instalação e Execução
+
+### 1. Clonar o Repositório
+```bash
+git clone <URL_DO_REPOSITORIO>
+cd HAWK-menu
+```
+
+### 2. Criar e Ativar o Ambiente Virtual
+- **Windows (PowerShell):**
+  ```powershell
+  python -m venv .venv
+  .venv\Scripts\Activate.ps1
+  ```
+- **Linux / macOS:**
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate
+  ```
+
+### 3. Instalar Dependências
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configuração de Variáveis de Ambiente (Opcional)
+Por padrão, a aplicação se conecta automaticamente à API HAWK em produção hospedada no Render (`https://hawk-api-fsgy.onrender.com`). Caso deseje alterar:
+```bash
+cp .env.example .env
+```
+
+### 5. Executar a Aplicação
+```bash
+python main.py
+```
+
+---
+
+## Interface e Navegação do Console
+
+Ao iniciar, o sistema executa um diagnóstico automático com o servidor no Render (tratando o tempo de "acordar" do plano gratuito do serviço). Se a rede estiver indisponível, entra automaticamente em **Modo Offline**, permitindo consultas ao cache local:
+
+```
+========================================================================
+                      HAWK - TRAVESSIA ADAPTATIVA                      
+             Sistema de Gerenciamento, Simulação e Análise             
+========================================================================
+[AVISO LEGAL E LIMITES DO PROJETO]
+* Este software é uma PROPOSTA ACADÊMICA para fins de estudo e simulação.
+* NÃO é um sistema homologado nem certificado para segurança viária.
+* NÃO controla semáforos reais e NÃO deve ser implantado em vias públicas.
+========================================================================
+
+[STATUS] ONLINE (Conectado à API: https://hawk-api-fsgy.onrender.com)
+------------------------------------------------------------------------
+============================================================
+  MENU PRINCIPAL - HAWK CROSS CONSOLE
+============================================================
+
+  [1] Gerenciar Cruzamentos
+  [2] Gerenciar Ocorrências
+  [3] Eventos de Travessia e Histórico
+  [4] Simulações de Travessia
+  [5] Relatórios do Sistema
+  [6] Modelagem Matemática e Gráficos
+  [7] Status da API / Alternar Modo Offline
+  [0] Sair do sistema
+```
+
+---
+
+## Roteiro de Demonstração (5 a 7 minutos)
+
+Para apresentações e avaliações acadêmicas, siga este roteiro de ponta a ponta:
+
+1. **Inicialização e Diagnóstico:**
+   - Execute `python main.py`. Mostre o aviso legal de limites do produto e o status `[ONLINE]`.
+2. **Gerenciamento de Cruzamentos (Opção 1):**
+   - Acesse `[1] Listar cruzamentos` para ver a tabela formatada com dados da API.
+   - Acesse `[3] Cadastrar novo cruzamento`: cadastre um cruzamento (ex: *Av. Brigadeiro com Paulista*, largura *14.0 m*). Mostre a validação com coordenadas `(lat, lon)` e o ID retornado.
+3. **Simulação de Travessia Adaptativa (Opção 4):**
+   - Acesse `[1] Executar Simulação Individual`. Selecione o cruzamento recém-criado.
+   - Escolha o cenário `[2] Extensao`: mostre o evento `travessia_estendida` onde o tempo adicional de proteção foi acionado.
+   - Em seguida, escolha o cenário `[3] Falha`: destaque o alerta visual na tela informando que o servidor gerou automaticamente uma **ocorrência de prioridade alta**.
+4. **Gerenciamento de Ocorrências (Opção 2):**
+   - Acesse `[1] Listar ocorrências` para ver a ocorrência gerada pelo cenário de falha.
+   - Acesse `[5] Mudar situação da ocorrência (PATCH)` e mude a situação de `aberta` para `em_andamento` e depois `resolvida`.
+5. **Eventos e Estado Semafórico em Tempo Real (Opção 3):**
+   - Acesse `[4] Consultar Estado Semafórico Atual`: selecione o cruzamento e observe a interpretação semafórica em tempo real via `match/case`.
+   - Acesse `[2] Consultar Histórico de Eventos`: visualize a contagem agregada de eventos por tipo (`deteccao`, `travessia_normal`, `travessia_estendida`, `falha`).
+6. **Relatórios Operacionais e Exportação (Opção 5):**
+   - Acesse `[5] Relatório Consolidado Completo`. Confirme a exportação e mostre os arquivos gerados em `dados/relatorios/*.json` e `*.txt`.
+7. **Modelagem Matemática e Gráficos Técnicos (Opção 6):**
+   - Acesse `[2] Calcular Tempo Mínimo Seguro`: observe a conferência matemática exata entre o cálculo local e a rota `/calculos/tempo-minimo`.
+   - Acesse `[6] Dinâmica da Fila de Veículos`: observe a comparação quantitativa provando que a extensão no verde para pedestres retém menos de 2 veículos adicionais na fila.
+   - Acesse `[8] Gerar Todos os 7 Gráficos com Matplotlib`: abra a pasta `graficos/` e mostre os gráficos técnicos salvos em PNG com os conceitos de limites, derivadas, integrais e filas.
+
+---
+
+## Estrutura do Repositório
+
+```
+hawk-cross-console/
+├── AGENTS.md                  # Contexto, regras de negócio e limites éticos
+├── README.md                  # Documentação principal e roteiro de apresentação
+├── requirements.txt           # Dependências (requests, matplotlib)
+├── .env.example               # Modelo de variáveis de ambiente
+├── .gitignore                 # Arquivos ignorados pelo Git
+├── main.py                    # Ponto de entrada do sistema
+├── docs/
+│   ├── etapas/                # Roteiro das 8 etapas de desenvolvimento
+│   └── rastreabilidade.md     # Matriz de atendimento aos requisitos acadêmicos
+├── src/hawk/
+│   ├── config.py              # Constantes, caminhos e tuplas de enums
+│   ├── api_client.py          # Cliente HTTP centralizado e tratamento de status
+│   ├── formatacao.py          # Formatação de tabelas e mensagens de console
+│   ├── persistencia.py        # Escrita atômica em JSON, cache e histórico local
+│   ├── sessao.py              # Gerenciamento de estado online/offline
+│   ├── menus/
+│   │   ├── principal.py       # Loop principal de navegação
+│   │   ├── cruzamentos.py     # CRUD de cruzamentos
+│   │   ├── ocorrencias.py     # CRUD de ocorrências e PATCH de situação
+│   │   ├── eventos.py         # Histórico, eventos manuais e estado atual
+│   │   ├── simulacoes.py      # Simulação individual e em lote (dados simulados)
+│   │   ├── relatorios.py      # Relatórios operacionais e consolidados
+│   │   └── matematica.py      # Menu integrado da modelagem matemática
+│   └── matematica/
+│       ├── modelo.py          # Equações de movimento e tempo regulamentar
+│       ├── limites.py         # Estudo dos 4 limites (continuidade, assíntota, fila)
+│       ├── derivadas.py       # Derivada numérica (diferença central) e analítica
+│       ├── integrais.py       # Trapézio e Simpson 1/3 (recuperação de L)
+│       ├── fila_veiculos.py   # EDO de conservação de fluxo veicular
+│       └── graficos.py        # Gerador dos 7 gráficos técnicos com matplotlib
+├── dados/                     # cache_api.json, historico_local.json, calculos.json
+├── graficos/                  # 7 figuras PNG de alta resolução geradas
+├── relatorio/
+│   └── relatorio_matematico.md # Relatório formal completo em Markdown
+└── tests/                     # Bateria completa de testes automatizados e integração
+```
+
+---
+
+## Testes Automatizados
+
+O sistema conta com testes automatizados desenvolvidos com o framework `unittest` da biblioteca padrão, cobrindo todas as camadas da aplicação sem necessidade de conexão externa para rodar:
+
+```bash
+python -m unittest discover -s tests
+```
+
+Para validar a comunicação de ponta a ponta com a API HAWK em produção no Render:
+```bash
+python tests/integration_etapa04.py
+python tests/integration_etapa05.py
+python tests/integration_etapa06.py
+```
+
+---
+
+## Integrantes do Grupo
+
+- Projeto Acadêmico — FIAP
+- **Disciplinas:**
+  - *Computational Thinking with Python*
+  - *Matemática*
