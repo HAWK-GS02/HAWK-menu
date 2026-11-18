@@ -14,14 +14,7 @@ BANNER = """
                       HAWK - TRAVESSIA ADAPTATIVA                      
              Sistema de Gerenciamento, Simulação e Análise             
 ========================================================================
-[AVISO LEGAL E LIMITES DO PROJETO]
-* Este software é uma PROPOSTA ACADÊMICA para fins de estudo e simulação.
-* NÃO é um sistema homologado nem certificado para segurança viária.
-* NÃO controla semáforos reais e NÃO deve ser implantado em vias públicas.
-* NÃO comanda abertura de sinais (apenas registra/simula eventos e consulta).
-* NÃO realiza reconhecimento facial nem classifica ou rastreia indivíduos.
-* Dados gerados localmente são simulados e identificados como tais.
-========================================================================
+
 """
 
 

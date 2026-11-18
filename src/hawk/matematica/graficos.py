@@ -1,70 +1,81 @@
-"""Geração de gráficos técnicos com matplotlib para o relatório matemático do HAWK Cross."""
+"""Geração dos 3 gráficos técnicos com matplotlib para o HAWK Cross.
 
+Gera exclusivamente:
+1. 01_posicao_velocidade.png - Curvas x(t) e v(t) com destaque para v_max e área = L
+2. 02_velocidade_requerida.png - Curva v_req(t) com assíntota vertical em T_min
+3. 03_fila_veiculos.png - Evolução da fila Q(t) com/sem extensão e aviso de premissa simulada
+"""
+
+import os
+import tempfile
 from pathlib import Path
-from typing import Any
+
+# Configura diretório de cache temporário para evitar erros de permissão no Windows
+os.environ.setdefault("MPLCONFIGDIR", tempfile.gettempdir())
+
 import matplotlib
-# Configura backend não-interativo para evitar problemas de interface gráfica
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from src.hawk import config
-from src.hawk.matematica import derivadas, fila_veiculos, integrais, limites, modelo
+from src.hawk.matematica import modelo
 
 
-def grafico_posicao(L: float = 14.0, T: float = 28.3, caminho: Path | None = None) -> Path:
-    """1. Gráfico da posição x(t): Modelo Suave (Cúbico) vs Modelo Constante."""
-    destino = caminho or (config.DIR_GRAFICOS / "grafico_posicao.png")
+def grafico_posicao_velocidade(
+    L: float = 10.0,
+    T: float = 28.0,
+    caminho: Path | None = None,
+) -> Path:
+    """1. Gráfico duplo: Posição x(t) e Velocidade Instantânea v(t).
+    
+    Destaca a velocidade máxima em t = T/2 e a integral (área sob v(t) = L).
+    """
+    destino = caminho or (config.DIR_GRAFICOS / "01_posicao_velocidade.png")
     destino.parent.mkdir(parents=True, exist_ok=True)
 
-    tempos = modelo.linspace(0.0, T, 150)
-    v_cte = L / T
-    x_suave = [modelo.posicao_suave(t, L, T) for t in tempos]
-    x_cte = [modelo.posicao_constante(t, v_cte, L=L) for t in tempos]
+    tempos = modelo.linspace(0.0, T, 200)
+    posicoes = [modelo.posicao(t, L, T) for t in tempos]
+    velocidades = [modelo.velocidade(t, L, T) for t in tempos]
+    v_max = modelo.velocidade_maxima(L, T)
 
-    plt.figure(figsize=(8, 5))
-    plt.plot(tempos, x_suave, label=r"Modelo Suave: $x(t) = L(3s^2 - 2s^3)$", color="#1f77b4", linewidth=2.5)
-    plt.plot(tempos, x_cte, label=r"Modelo Linear: $x(t) = v_{méd} \cdot t$", color="#ff7f0e", linestyle="--", linewidth=2)
-    plt.axhline(L, color="gray", linestyle=":", label=f"Largura da Via L = {L:.1f} m")
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8.5, 7.5), sharex=True)
 
-    plt.title("Cinemática de Travessia: Posição do Pedestre x(t)", fontsize=13, fontweight="bold")
-    plt.xlabel("Tempo t (segundos)", fontsize=11)
-    plt.ylabel("Posição x (metros)", fontsize=11)
-    plt.grid(True, linestyle="--", alpha=0.6)
-    plt.legend(loc="lower right")
-    plt.tight_layout()
-    plt.savefig(destino, dpi=150)
-    plt.close()
-
-    return destino
-
-
-def grafico_velocidade_aceleracao(L: float = 14.0, T: float = 28.3, caminho: Path | None = None) -> Path:
-    """2. Gráficos de velocidade v(t) e aceleração a(t) do pedestre."""
-    destino = caminho or (config.DIR_GRAFICOS / "grafico_velocidade_aceleracao.png")
-    destino.parent.mkdir(parents=True, exist_ok=True)
-
-    tempos = modelo.linspace(0.0, T, 150)
-    vels = [modelo.velocidade_suave(t, L, T) for t in tempos]
-    acels = [modelo.aceleracao_suave(t, L, T) for t in tempos]
-
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
-
-    # Subplot Velocidade
-    ax1.plot(tempos, vels, color="#2ca02c", linewidth=2.5, label=r"Velocidade $v(t) = x'(t)$")
-    ax1.axhline(1.5 * L / T, color="#d62728", linestyle=":", label=f"v_max = {1.5 * L / T:.2f} m/s (em t = T/2)")
-    ax1.axhline(L / T, color="#ff7f0e", linestyle="--", label=f"v_méd = {L / T:.2f} m/s")
-    ax1.set_ylabel("Velocidade (m/s)", fontsize=11)
-    ax1.set_title("Perfil Dinâmico: Velocidade Instantânea e Aceleração", fontsize=13, fontweight="bold")
+    # Subgráfico 1: Posição x(t)
+    ax1.plot(tempos, posicoes, label=r"Posição $x(t) = L(3s^2 - 2s^3)$", color="#1f77b4", linewidth=2.5)
+    ax1.axhline(L, color="#7f7f7f", linestyle=":", label=f"Largura da Via $L = {L:.1f}$ m")
+    ax1.set_title("Cinemática de Travessia: Posição $x(t)$", fontsize=12, fontweight="bold")
+    ax1.set_ylabel("Posição (m)", fontsize=11)
     ax1.grid(True, linestyle="--", alpha=0.6)
-    ax1.legend(loc="upper right")
+    ax1.legend(loc="lower right")
 
-    # Subplot Aceleração
-    ax2.plot(tempos, acels, color="#9467bd", linewidth=2.5, label=r"Aceleração $a(t) = x''(t)$")
-    ax2.axhline(0, color="black", linestyle="-", linewidth=0.8)
-    ax2.axvspan(0, T / 2.0, color="#2ca02c", alpha=0.08, label="Fase de Aceleração (a > 0)")
-    ax2.axvspan(T / 2.0, T, color="#d62728", alpha=0.08, label="Fase de Desaceleração (a < 0)")
-    ax2.set_xlabel("Tempo t (segundos)", fontsize=11)
-    ax2.set_ylabel("Aceleração (m/s²)", fontsize=11)
+    # Subgráfico 2: Velocidade v(t)
+    ax2.plot(tempos, velocidades, label=r"Velocidade $v(t) = \frac{6L}{T}(s - s^2)$", color="#2ca02c", linewidth=2.5)
+    ax2.plot(T / 2.0, v_max, marker="o", markersize=7, color="#d62728", label=f"$v_{{max}} = {v_max:.3f}$ m/s (em $t = T/2$)")
+    ax2.axvline(T / 2.0, color="#d62728", linestyle="--", alpha=0.5)
+
+    # Área sob a curva representando a integral
+    ax2.fill_between(
+        tempos,
+        velocidades,
+        color="#2ca02c",
+        alpha=0.25,
+        hatch="//",
+        label=f"Área $= \\int_0^T v(t) dt = L = {L:.1f}$ m",
+    )
+    ax2.text(
+        T / 2.0,
+        v_max * 0.40,
+        f"Área = L = {L:.1f} m\n(Deslocamento Total)",
+        ha="center",
+        va="center",
+        fontsize=10,
+        fontweight="bold",
+        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#2ca02c", alpha=0.9),
+    )
+
+    ax2.set_title(r"Velocidade Instantânea $v(t) = x'(t)$ e Integral $\int v dt = L$", fontsize=12, fontweight="bold")
+    ax2.set_xlabel("Tempo $t$ (segundos)", fontsize=11)
+    ax2.set_ylabel("Velocidade (m/s)", fontsize=11)
     ax2.grid(True, linestyle="--", alpha=0.6)
     ax2.legend(loc="upper right")
 
@@ -75,85 +86,66 @@ def grafico_velocidade_aceleracao(L: float = 14.0, T: float = 28.3, caminho: Pat
     return destino
 
 
-def grafico_convergencia_limites(L: float = 14.0, T: float = 28.3, caminho: Path | None = None) -> Path:
-    """3. Gráfico da convergência do quociente de diferenças para a derivada analítica."""
-    destino = caminho or (config.DIR_GRAFICOS / "grafico_convergencia_limites.png")
+def grafico_velocidade_requerida(
+    L: float = 10.0,
+    T: float = 28.0,
+    T_min: float = 21.67,
+    caminho: Path | None = None,
+) -> Path:
+    """2. Gráfico da velocidade requerida v_req(t) quando t -> T_min-.
+    
+    Apresenta a assíntota vertical em T_min justificando a extensão de tempo.
+    """
+    destino = caminho or (config.DIR_GRAFICOS / "02_velocidade_requerida.png")
     destino.parent.mkdir(parents=True, exist_ok=True)
 
-    t_teste = T / 2.0
-    h_lista = [1.0, 0.5, 0.2, 0.1, 0.05, 0.01, 1e-3, 1e-4, 1e-5, 1e-6]
-    tabela, v_exata = limites.limite_quociente_diferencas(t_teste, L, T, h_lista)
+    # Gera pontos se aproximando de T_min pela esquerda
+    tempos = modelo.linspace(0.0, T_min - 0.05, 250)
+    v_reqs = [modelo.velocidade_requerida(t, L, T, T_min) for t in tempos]
 
-    h_vals = [item[0] for item in tabela]
-    erros = [item[2] for item in tabela]
-
-    plt.figure(figsize=(8, 5))
-    plt.loglog(h_vals, erros, marker="o", color="#d62728", linewidth=2, label="Erro |Quociente - v(t)|")
-    plt.title(f"Convergência do Limite do Quociente de Diferenças (t = {t_teste:.1f} s)", fontsize=13, fontweight="bold")
-    plt.xlabel("Passo h (segundos) - Escala Logarítmica", fontsize=11)
-    plt.ylabel("Erro Absoluto (m/s) - Escala Logarítmica", fontsize=11)
-    plt.grid(True, which="both", linestyle="--", alpha=0.6)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(destino, dpi=150)
-    plt.close()
-
-    return destino
-
-
-def grafico_velocidade_requerida(L: float = 14.0, T_lim: float = 28.3, caminho: Path | None = None) -> Path:
-    """4. Velocidade requerida v_req(t) com assíntota em T_lim."""
-    destino = caminho or (config.DIR_GRAFICOS / "grafico_velocidade_requerida.png")
-    destino.parent.mkdir(parents=True, exist_ok=True)
-
-    # Simula pedestre com velocidade reduzida que chega a 70% de L quando t se aproxima de T_lim
-    d_restante = 0.30 * L  # 30% da via restante (ex: 4.2 metros)
-    delta_t_vals = [5.0, 4.0, 3.0, 2.0, 1.5, 1.0, 0.5, 0.2, 0.1, 0.05]
-    t_vals = [T_lim - dt for dt in delta_t_vals]
-    v_req_vals = [d_restante / dt for dt in delta_t_vals]
-
-    plt.figure(figsize=(8, 5))
-    plt.plot(t_vals, v_req_vals, marker="s", color="#e377c2", linewidth=2.5, label=r"$v_{req}(t) = \frac{d(t)}{T_{lim} - t}$")
-    plt.axvline(T_lim, color="red", linestyle="--", linewidth=2, label=f"Prazo Padrão T_lim = {T_lim:.1f} s (Assíntota)")
-    plt.axhline(0.6, color="green", linestyle=":", label="Velocidade Normal (0.60 m/s)")
-
-    plt.title("Limite Infinito: Velocidade Requerida para Concluir no Prazo", fontsize=13, fontweight="bold")
-    plt.xlabel("Tempo Atual t (segundos)", fontsize=11)
-    plt.ylabel("Velocidade Requerida v_req (m/s)", fontsize=11)
-    plt.ylim(0, max(v_req_vals) * 1.1)
-    plt.grid(True, linestyle="--", alpha=0.6)
-    plt.legend(loc="upper left")
-    plt.tight_layout()
-    plt.savefig(destino, dpi=150)
-    plt.close()
-
-    return destino
-
-
-def grafico_integral_area(L: float = 14.0, T: float = 28.3, caminho: Path | None = None) -> Path:
-    """5. Área sob a curva v(t) destacando o Teorema Fundamental do Cálculo: ∫ v dt = L."""
-    destino = caminho or (config.DIR_GRAFICOS / "grafico_integral_area.png")
-    destino.parent.mkdir(parents=True, exist_ok=True)
-
-    tempos = modelo.linspace(0.0, T, 150)
-    vels = [modelo.velocidade_suave(t, L, T) for t in tempos]
-
-    plt.figure(figsize=(8, 5))
-    plt.plot(tempos, vels, color="#1f77b4", linewidth=2.5, label=r"$v(t) = \frac{6L}{T}(s - s^2)$")
-    plt.fill_between(
+    plt.figure(figsize=(8.5, 5.5))
+    plt.plot(
         tempos,
-        vels,
+        v_reqs,
+        color="#d62728",
+        linewidth=2.5,
+        label=r"$v_{req}(t) = \frac{L - x(t)}{T_{min} - t}$",
+    )
+    plt.axvline(
+        T_min,
+        color="black",
+        linestyle="--",
+        linewidth=2.0,
+        label=f"Prazo Padrão $T_{{min}} = {T_min:.2f}$ s (Assíntota)",
+    )
+    plt.axhline(
+        modelo.VELOCIDADE_REF,
         color="#1f77b4",
-        alpha=0.25,
-        hatch="//",
-        label=f"Área = $\\int_0^T v(t) dt = L = {L:.1f}$ m (Deslocamento)",
+        linestyle=":",
+        linewidth=1.8,
+        label=f"Velocidade de Projeto ($v_{{ref}} = {modelo.VELOCIDADE_REF:.2f}$ m/s)",
     )
 
-    plt.title("Interpretação Geométrica da Integral: Deslocamento Total", fontsize=13, fontweight="bold")
-    plt.xlabel("Tempo t (segundos)", fontsize=11)
-    plt.ylabel("Velocidade v (m/s)", fontsize=11)
+    # Destaque da assíntota vertical
+    teto_y = min(max(v_reqs) * 1.05, 30.0)
+    plt.ylim(0.0, teto_y)
+    plt.annotate(
+        r"Se $x(T_{min}) < L \Rightarrow v_{req} \to +\infty$" + "\n(Exige velocidade inatingível)",
+        xy=(T_min - 0.1, teto_y * 0.85),
+        xytext=(T_min * 0.30, teto_y * 0.70),
+        arrowprops=dict(facecolor="#d62728", shrink=0.05, width=1.5, headwidth=6),
+        fontsize=10,
+        fontweight="bold",
+        color="#d62728",
+        bbox=dict(boxstyle="round,pad=0.3", fc="#fff3cd", ec="#d62728", alpha=0.95),
+    )
+
+    plt.title(r"Limite Infinito: Velocidade Requerida $v_{req}(t)$ para $t \to T_{min}^-$", fontsize=12, fontweight="bold")
+    plt.xlabel("Tempo Atual $t$ (segundos)", fontsize=11)
+    plt.ylabel("Velocidade Requerida $v_{req}$ (m/s)", fontsize=11)
     plt.grid(True, linestyle="--", alpha=0.6)
-    plt.legend(loc="upper right")
+    plt.legend(loc="upper left")
+
     plt.tight_layout()
     plt.savefig(destino, dpi=150)
     plt.close()
@@ -162,70 +154,66 @@ def grafico_integral_area(L: float = 14.0, T: float = 28.3, caminho: Path | None
 
 
 def grafico_fila_veiculos(
-    T_min: float = 28.3,
-    percentual_ext: float = 0.25,
+    T_min: float = 21.67,
+    T: float = 28.0,
+    lam: float = 0.20,
     caminho: Path | None = None,
 ) -> Path:
-    """6. Evolução temporal da fila de veículos Q(t): Cenário Normal vs Extensão."""
-    destino = caminho or (config.DIR_GRAFICOS / "grafico_fila_veiculos.png")
+    """3. Gráfico da fila de veículos Q(t) acumulada: Cenário Normal vs Estendido.
+    
+    Apresenta a fase de pedestres sombreada e o rótulo de premissa simulada.
+    """
+    destino = caminho or (config.DIR_GRAFICOS / "03_fila_veiculos.png")
     destino.parent.mkdir(parents=True, exist_ok=True)
 
-    dados = fila_veiculos.comparar_cenarios_fila(T_min, percentual_extensao=percentual_ext)
-    sim_norm = dados["normal"]
-    sim_ext = dados["extensao"]
+    tempos = modelo.linspace(0.0, T, 200)
+    fila_total = [modelo.fila(t, lam) for t in tempos]
 
-    plt.figure(figsize=(9, 5.5))
-    # Curvas de fila
-    plt.plot(sim_norm["pontos_t"], sim_norm["pontos_Q_euler"], label=f"Cenário Normal (T_fase = {T_min:.1f} s)", color="#1f77b4", linewidth=2)
-    plt.plot(sim_ext["pontos_t"], sim_ext["pontos_Q_euler"], label=f"Cenário Estendido (T_fase = {dados['T_ext']:.1f} s, +{dados['percentual_extensao']:.0f}%)", color="#d62728", linewidth=2.5)
+    q_min = modelo.fila(T_min, lam)
+    q_ext = modelo.fila(T, lam)
+    delta_q = modelo.custo_extensao(T_min, T, lam)
 
-    # Destaque das fases de pedestres
-    plt.axvspan(0, T_min, color="#1f77b4", alpha=0.10, label="Fase Pedestres Normal")
-    plt.axvspan(T_min, dados["T_ext"], color="#d62728", alpha=0.15, label="Tempo Estendido HAWK")
+    plt.figure(figsize=(8.5, 5.5))
+    plt.plot(tempos, fila_total, color="#333333", linewidth=2.2, label=r"Fila Acumulada $Q(t) = \int_0^t \lambda\,d\tau = \lambda \cdot t$")
 
-    plt.title("Impacto no Tráfego Veicular: Formação e Dissipação de Fila [Dados Simulados]", fontsize=13, fontweight="bold")
-    plt.xlabel("Tempo t (segundos)", fontsize=11)
-    plt.ylabel("Extensão da Fila Q(t) (veículos)", fontsize=11)
+    # Destaque dos pontos finais
+    plt.plot(T_min, q_min, marker="o", color="#1f77b4", markersize=8, label=f"Fim sem extensão ($T_{{min}} = {T_min:.2f}$ s, $Q = {q_min:.2f}$ veíc)")
+    plt.plot(T, q_ext, marker="s", color="#d62728", markersize=8, label=f"Fim com extensão ($T = {T:.1f}$ s, $Q = {q_ext:.2f}$ veíc)")
+
+    # Áreas sombreadas das fases
+    plt.axvspan(0.0, T_min, color="#1f77b4", alpha=0.12, label="Fase Normal de Pedestres")
+    plt.axvspan(T_min, T, color="#d62728", alpha=0.18, label=f"Extensão da Proteção (+{T - T_min:.1f} s)")
+
+    # Anotação do custo da extensão
+    plt.annotate(
+        f"Custo da Extensão:\n+{delta_q:.2f} veículo a mais",
+        xy=(T, q_ext),
+        xytext=(T * 0.55, q_ext * 0.55),
+        arrowprops=dict(facecolor="#d62728", shrink=0.05, width=1.5, headwidth=6),
+        fontsize=10,
+        fontweight="bold",
+        color="#721c24",
+        bbox=dict(boxstyle="round,pad=0.3", fc="#f8d7da", ec="#d62728", alpha=0.95),
+    )
+
+    # Rótulo de premissa simulada
+    plt.text(
+        0.03,
+        0.92,
+        r"[Premissa Simulada: $\lambda = 0{,}20$ veíc/s, $\mu = 0$]",
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        fontweight="bold",
+        color="#383d41",
+        bbox=dict(boxstyle="round,pad=0.3", fc="#e2e3e5", ec="#d6d8db"),
+    )
+
+    plt.title("Impacto no Tráfego: Fila de Veículos Acumulada $Q(t)$ [Premissa Simulada]", fontsize=12, fontweight="bold")
+    plt.xlabel("Tempo de Travessia $t$ (segundos)", fontsize=11)
+    plt.ylabel("Fila Acumulada $Q(t)$ (veículos)", fontsize=11)
     plt.grid(True, linestyle="--", alpha=0.6)
-    plt.legend(loc="upper right")
-    plt.tight_layout()
-    plt.savefig(destino, dpi=150)
-    plt.close()
+    plt.legend(loc="lower right")
 
-    return destino
-
-
-def grafico_histograma_travessias(
-    eventos: list[dict[str, Any]] | None = None,
-    T_min: float = 28.3,
-    caminho: Path | None = None,
-) -> Path:
-    """7. Histograma dos tempos de travessia com linha de referência T_min."""
-    destino = caminho or (config.DIR_GRAFICOS / "grafico_histograma_travessias.png")
-    destino.parent.mkdir(parents=True, exist_ok=True)
-
-    tempos: list[float] = []
-    if eventos:
-        for ev in eventos:
-            t = ev.get("tempo_travessia_s")
-            if t is not None and float(t) > 0:
-                tempos.append(float(t))
-
-    rotulo_fonte = "Eventos da API HAWK"
-    if not tempos:
-        # Massa de dados padrão representativa se não houver dados reais
-        tempos = [18.2, 20.5, 22.1, 23.0, 24.5, 26.0, 27.2, 28.0, 29.5, 31.0, 32.5, 35.0, 38.2]
-        rotulo_fonte = "Massa Amostral Simulada"
-
-    plt.figure(figsize=(8, 5))
-    plt.hist(tempos, bins=8, color="#2ca02c", edgecolor="black", alpha=0.75, label=f"Distribuição ({rotulo_fonte})")
-    plt.axvline(T_min, color="red", linestyle="--", linewidth=2.5, label=f"T_min Seguro = {T_min:.1f} s")
-
-    plt.title(f"Distribuição dos Tempos de Travessia ({rotulo_fonte})", fontsize=13, fontweight="bold")
-    plt.xlabel("Tempo de Travessia (segundos)", fontsize=11)
-    plt.ylabel("Frequência de Ocorrência", fontsize=11)
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.legend()
     plt.tight_layout()
     plt.savefig(destino, dpi=150)
     plt.close()
@@ -234,18 +222,18 @@ def grafico_histograma_travessias(
 
 
 def gerar_todos_os_graficos(
-    L: float = 14.0,
-    T_min: float = 28.3,
-    eventos: list[dict[str, Any]] | None = None,
+    L: float = 10.0,
+    T: float = 28.0,
+    T_min: float | None = None,
+    lam: float = 0.20,
 ) -> list[Path]:
-    """Gera o conjunto completo dos 7 gráficos requeridos na Etapa 07."""
+    """Gera o conjunto completo dos 3 gráficos requeridos para a entrega simplificada."""
+    if T_min is None:
+        T_min = modelo.tempo_minimo(L)
+
     caminhos = [
-        grafico_posicao(L=L, T=T_min),
-        grafico_velocidade_aceleracao(L=L, T=T_min),
-        grafico_convergencia_limites(L=L, T=T_min),
-        grafico_velocidade_requerida(L=L, T_lim=T_min),
-        grafico_integral_area(L=L, T=T_min),
-        grafico_fila_veiculos(T_min=T_min),
-        grafico_histograma_travessias(eventos=eventos, T_min=T_min),
+        grafico_posicao_velocidade(L=L, T=T),
+        grafico_velocidade_requerida(L=L, T=T, T_min=T_min),
+        grafico_fila_veiculos(T_min=T_min, T=T, lam=lam),
     ]
     return caminhos

@@ -1,6 +1,7 @@
 # HAWK Cross — Console (Gerenciamento, Simulação e Modelagem Matemática)
 
-Aplicação integrada de console em Python para gerenciamento de cruzamentos semafóricos adaptativos, simulação de travessias acessíveis, persistência local e modelagem matemática (cálculo de limites, derivadas, integrais e filas de tráfego).
+Aplicação integrada de console em Python para gerenciamento de cruzamentos semafóricos adaptativos, simulação de travessias acessíveis, persistência local e modelagem matemática.
+A modelagem matemática do projeto é reduzida ao essencial para justificar a proteção aos pedestres: limites de velocidade requerida ($v_{req} \to +\infty$), perfil suave via derivadas ($v(t) = x'(t)$ com pico em $t = T/2$), e cálculo de grandezas acumuladas por integrais (deslocamento $\int v\,dt = L$ e fila simulada $\Delta Q \approx 1{,}3$ veículo).
 
 > **Aviso Legal e Limites do Projeto:**  
 > Este software é uma **proposta acadêmica** desenvolvida para as disciplinas de *Computational Thinking with Python* e *Matemática*.  
@@ -121,9 +122,11 @@ Para apresentações e avaliações acadêmicas, siga este roteiro de ponta a po
 6. **Relatórios Operacionais e Exportação (Opção 5):**
    - Acesse `[5] Relatório Consolidado Completo`. Confirme a exportação e mostre os arquivos gerados em `dados/relatorios/*.json` e `*.txt`.
 7. **Modelagem Matemática e Gráficos Técnicos (Opção 6):**
-   - Acesse `[2] Calcular Tempo Mínimo Seguro`: observe a conferência matemática exata entre o cálculo local e a rota `/calculos/tempo-minimo`.
-   - Acesse `[6] Dinâmica da Fila de Veículos`: observe a comparação quantitativa provando que a extensão no verde para pedestres retém menos de 2 veículos adicionais na fila.
-   - Acesse `[8] Gerar Todos os 7 Gráficos com Matplotlib`: abra a pasta `graficos/` e mostre os gráficos técnicos salvos em PNG com os conceitos de limites, derivadas, integrais e filas.
+   - Acesse `[1] Tempo Mínimo Seguro`: confere o cálculo local exato com o endpoint `/calculos/tempo-minimo`.
+   - Acesse `[2] Estudo dos Limites`: observa a assíntota $v_{req} \to +\infty$, demonstrando por que estender a proteção é indispensável.
+   - Acesse `[3] Análise de Derivadas`: avalia a velocidade instantânea $v(t)$, aceleração $a(t)$ e o ponto crítico no meio da via ($t = T/2$).
+   - Acesse `[4] Grandezas Acumuladas por Integrais`: comprova que a extensão retém apenas $\approx 1{,}3$ veículo a mais na fila veicular.
+   - Acesse `[5] Gerar Gráficos e Integração com API`: gera os 3 gráficos técnicos em `graficos/` e analisa a velocidade média observada.
 
 ---
 
@@ -138,7 +141,7 @@ hawk-cross-console/
 ├── .gitignore                 # Arquivos ignorados pelo Git
 ├── main.py                    # Ponto de entrada do sistema
 ├── docs/
-│   ├── etapas/                # Roteiro das 8 etapas de desenvolvimento
+│   ├── etapas/                # Roteiro das etapas de desenvolvimento
 │   └── rastreabilidade.md     # Matriz de atendimento aos requisitos acadêmicos
 ├── src/hawk/
 │   ├── config.py              # Constantes, caminhos e tuplas de enums
@@ -153,19 +156,16 @@ hawk-cross-console/
 │   │   ├── eventos.py         # Histórico, eventos manuais e estado atual
 │   │   ├── simulacoes.py      # Simulação individual e em lote (dados simulados)
 │   │   ├── relatorios.py      # Relatórios operacionais e consolidados
-│   │   └── matematica.py      # Menu integrado da modelagem matemática
+│   │   └── matematica.py      # Menu integrado da modelagem matemática (5 opções)
 │   └── matematica/
-│       ├── modelo.py          # Equações de movimento e tempo regulamentar
-│       ├── limites.py         # Estudo dos 4 limites (continuidade, assíntota, fila)
-│       ├── derivadas.py       # Derivada numérica (diferença central) e analítica
-│       ├── integrais.py       # Trapézio e Simpson 1/3 (recuperação de L)
-│       ├── fila_veiculos.py   # EDO de conservação de fluxo veicular
-│       └── graficos.py        # Gerador dos 7 gráficos técnicos com matplotlib
+│       ├── modelo.py          # Modelo simplificado: limites, derivadas, integrais e fila
+│       └── graficos.py        # Geração dos 3 gráficos técnicos com matplotlib
 ├── dados/                     # cache_api.json, historico_local.json, calculos.json
-├── graficos/                  # 7 figuras PNG de alta resolução geradas
+├── graficos/                  # 3 figuras PNG técnicas geradas (01, 02 e 03)
 ├── relatorio/
-│   └── relatorio_matematico.md # Relatório formal completo em Markdown
-└── tests/                     # Bateria completa de testes automatizados e integração
+│   └── relatorio_matematico.md # Relatório formal completo em Markdown (7 tópicos)
+└── tests/                     # Bateria de testes automatizados com unittest
+    └── test_matematica.py     # 4 testes cobrindo limites, derivadas, integrais e fila
 ```
 
 ---

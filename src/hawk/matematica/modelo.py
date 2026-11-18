@@ -1,10 +1,14 @@
-"""Modelagem matemática fundamental da travessia de pedestres no HAWK Cross.
+"""Modelagem matemática do HAWK Cross (versão simples).
 
-Implementa as equações cinemáticas de posição, velocidade, aceleração e classificação
-de travessia sem bibliotecas externas (apenas Python padrão).
+Contém apenas as funções analíticas fundamentais de limites, derivadas,
+integrais e conservação de fluxo veicular para justificar a extensão
+da proteção semafórica a pedestres lentos/vulneráveis.
+Funções puras: sem chamadas de I/O, prints ou requisições de rede.
 """
 
-from typing import Any
+VELOCIDADE_REF = 0.6  # m/s (velocidade de referência para pedestres vulneráveis)
+MARGEM = 5.0          # s (margem de segurança normativa)
+LAMBDA = 0.20         # veículos/s (taxa simulada de chegada de veículos)
 
 
 def linspace(inicio: float, fim: float, num_pontos: int) -> list[float]:
@@ -15,75 +19,86 @@ def linspace(inicio: float, fim: float, num_pontos: int) -> list[float]:
     return [inicio + i * passo for i in range(num_pontos)]
 
 
-def tempo_minimo(L: float, v: float = 0.6, m: float = 5.0) -> float:
-    """Calcula o tempo mínimo seguro de travessia pela norma: T_min = L / v + m."""
+def tempo_minimo(largura: float, v: float = VELOCIDADE_REF, margem: float = MARGEM) -> float:
+    """Calcula o tempo mínimo de proteção: T_min = L / v_ref + margem."""
     if v <= 0:
-        raise ValueError("A velocidade do pedestre deve ser estritamente positiva.")
-    if L <= 0:
-        raise ValueError("A largura da via deve ser estritamente positiva.")
-    return (L / v) + m
+        raise ValueError("A velocidade de referência deve ser positiva.")
+    if largura <= 0:
+        raise ValueError("A largura da via deve ser positiva.")
+    return largura / v + margem
 
 
-def posicao_constante(t: float, v: float, L: float | None = None) -> float:
-    """Modelo linear de velocidade constante: x(t) = v * t."""
-    pos = v * t
-    if L is not None:
-        return max(0.0, min(L, pos))
-    return pos
-
-
-def posicao_suave(t: float, L: float, T: float) -> float:
-    """Modelo cúbico suave com repouso nas extremidades: x(t) = L * (3s² - 2s³), s = t/T.
+def posicao(t: float, largura: float, T: float) -> float:
+    """Posição x(t) = L * (3s² - 2s³), com s = t / T e s clampado em [0, 1].
     
-    Garante x(0) = 0 e x(T) = L, com clamp no intervalo [0, L].
+    O pedestre parte do repouso x(0) = 0 e termina em repouso x(T) = L.
     """
     if T <= 0:
-        return L if t >= 0 else 0.0
-    s = t / T
-    if s <= 0.0:
-        return 0.0
-    if s >= 1.0:
-        return L
-    return L * (3.0 * (s**2) - 2.0 * (s**3))
+        raise ValueError("O tempo total T deve ser estritamente positivo.")
+    s = min(max(t / T, 0.0), 1.0)
+    return largura * (3.0 * s**2 - 2.0 * s**3)
 
 
-def velocidade_suave(t: float, L: float, T: float) -> float:
-    """Derivada analítica da posição suave: v(t) = (6L/T) * (s - s²), s = t/T.
+def velocidade(t: float, largura: float, T: float) -> float:
+    """Velocidade instantânea v(t) = x'(t) = (6L/T) * (s - s²), para 0 <= t <= T.
     
-    Garante v(0) = 0, v(T) = 0 e v_max = 1.5 * (L/T) em t = T/2.
+    Para instantes fora do intervalo [0, T], retorna 0.0 (repouso).
     """
-    if T <= 0 or t < 0 or t > T:
+    if T <= 0:
+        raise ValueError("O tempo total T deve ser estritamente positivo.")
+    if t < 0.0 or t > T:
         return 0.0
     s = t / T
-    return (6.0 * L / T) * (s - s**2)
+    return (6.0 * largura / T) * (s - s**2)
 
 
-def aceleracao_suave(t: float, L: float, T: float) -> float:
-    """Segunda derivada analítica da posição: a(t) = (6L/T²) * (1 - 2s), s = t/T.
+def aceleracao(t: float, largura: float, T: float) -> float:
+    """Aceleração a(t) = v'(t) = (6L/T²) * (1 - 2s), para 0 <= t <= T.
     
-    Positiva na primeira metade (aceleração) e negativa na segunda (desaceleração).
+    Para instantes fora do intervalo [0, T], retorna 0.0.
     """
-    if T <= 0 or t < 0 or t > T:
+    if T <= 0:
+        raise ValueError("O tempo total T deve ser estritamente positivo.")
+    if t < 0.0 or t > T:
         return 0.0
     s = t / T
-    return (6.0 * L / (T**2)) * (1.0 - 2.0 * s)
+    return (6.0 * largura / (T**2)) * (1.0 - 2.0 * s)
 
 
-def classificar_travessia(T: float, T_min: float) -> str:
-    """Classifica a travessia com match/case e guardas:
+def velocidade_maxima(largura: float, T: float) -> float:
+    """Velocidade máxima v_max = 1.5 * L / T atingida no ponto crítico t = T/2."""
+    if T <= 0:
+        raise ValueError("O tempo total T deve ser estritamente positivo.")
+    return 1.5 * largura / T
+
+
+def velocidade_requerida(t: float, largura: float, T: float, T_min: float) -> float:
+    """v_req(t) = distância restante d(t) / tempo restante (T_min - t).
     
-    - 'normal': T <= T_min
-    - 'estendida': T_min < T <= 1.40 * T_min (faixa típica de extensão da API)
-    - 'critica': T > 1.40 * T_min (necessidade de intervenção ou alerta)
+    Exige t < T_min para evitar divisão por zero.
+    Se x(T_min) < L, v_req -> +infinito quando t -> T_min-.
     """
-    if T_min <= 0:
-        return "critica"
+    if t >= T_min:
+        raise ValueError("t deve ser estritamente menor que T_min para velocidade_requerida.")
+    d_restante = largura - posicao(t, largura, T)
+    return d_restante / (T_min - t)
 
-    razao = T / T_min
-    match razao:
-        case r if r <= 1.0:
-            return "normal"
-        case r if 1.0 < r <= 1.40:
-            return "estendida"
-        case _:
-            return "critica"
+
+def tabela_limite(largura: float, T: float, T_min: float, hs: tuple[float, ...] = (1.0, 0.1, 0.01, 0.001)) -> list[tuple[float, float]]:
+    """Lista de tuplas (h, v_req) para aproximação lateral t = T_min - h."""
+    return [(h, velocidade_requerida(T_min - h, largura, T, T_min)) for h in hs]
+
+
+def deslocamento(largura: float) -> float:
+    """Deslocamento total percorrido: integral definida de 0 a T de v(t) dt = L."""
+    return largura
+
+
+def fila(t_fase: float, lam: float = LAMBDA) -> float:
+    """Fila de veículos acumulada durante a fase de pedestres: integral de 0 a t_fase de lam dt = lam * t_fase."""
+    return lam * t_fase
+
+
+def custo_extensao(T_min: float, T: float, lam: float = LAMBDA) -> float:
+    """Custo da extensão em veículos adicionais retidos: Q(T) - Q(T_min) = lam * (T - T_min)."""
+    return fila(T, lam) - fila(T_min, lam)

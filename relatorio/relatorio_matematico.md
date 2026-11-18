@@ -1,220 +1,147 @@
-# Relatório de Modelagem Matemática — Sistema HAWK Cross
+# Relatório de Modelagem Matemática — HAWK Cross (CitizenTech)
 
 > **Aviso Legal e Limites do Projeto:**  
-> Este documento constitui uma **proposta acadêmica** desenvolvida para as disciplinas de *Computational Thinking with Python* e *Matemática*. O sistema HAWK Cross é um protótipo conceitual para cidades acessíveis. **Não é um sistema certificado nem homologado para segurança viária**, não controla equipamentos semafóricos reais em vias públicas e não realiza qualquer tipo de biometria, identificação de deficiências ou rastreamento individual de pessoas. Dados operacionais de tráfego veicular são estritamente simulados para fins de análise de impacto.
+> Este documento constitui uma **proposta acadêmica** desenvolvida para as disciplinas de *Computational Thinking with Python* e *Matemática*. O sistema HAWK Cross é uma prova de conceito de tecnologia assistiva urbana (CitizenTech) para cruzamentos semafóricos adaptativos. **Não é um sistema certificado nem homologado para segurança viária**, não comanda diretamente semáforos reais em vias públicas e **não realiza qualquer reconhecimento facial, biometria ou rastreamento individual de pessoas**. As taxas de tráfego veicular utilizadas são premissas simuladas de engenharia de tráfego.
 
 ---
 
-## 1. Introdução e Contextualização do Problema
+## 1. Problema Urbano e Proposta de Valor
 
-A mobilidade urbana moderna enfrenta o desafio histórico de conciliar a fluidez do tráfego veicular com a segurança dos pedestres, especialmente pessoas com mobilidade reduzida, idosos, crianças e pessoas com deficiência. Nos semáforos tradicionais de tempo fixo, a infraestrutura impõe um ritmo rígido e arbitrário, forçando o cidadão a se adaptar à máquina.
-
-O **HAWK Cross** parte da seguinte premissa:
-> *"A infraestrutura urbana deve se adaptar às pessoas, e não exigir que todas as pessoas se adaptem ao mesmo ritmo."*
-
-O sistema atua como uma travessia semafórica adaptativa: sensores de presença e câmeras locais detectam a ocupação da faixa de pedestres durante o verde para pedestres. Caso o pedestre não conclua a travessia dentro do tempo nominal, o sistema estende dinamicamente o tempo de proteção, impedindo a abertura prematura do sinal verde para os veículos.
-
-Neste relatório, formulamos a modelagem matemática completa do comportamento dinâmico do pedestre (posição, velocidade e aceleração através do cálculo diferencial e integral), o estudo de limites que justificam a extensão semafórica, e a modelagem por equações diferenciais da fila de veículos retida.
+A mobilidade urbana contemporânea enfrenta o desafio de equilibrar a segurança de pedestres vulneráveis com a fluidez do tráfego veicular. Em semáforos convencionais com tempos de verde fixos, pedestres em ritmos mais lentos — como idosos, pessoas com deficiência ou mobilidade reduzida, crianças e gestantes — frequentemente não conseguem concluir a travessia antes da abertura do sinal verde aos automóveis. Esse descompasso gera situações de risco iminente de atropelamento e insegurança viária. O protótipo **HAWK Cross** soluciona essa vulnerabilidade monitorando a ocupação física da faixa e estendendo dinamicamente o tempo de proteção semafórica quando necessário, preservando integralmente a privacidade dos cidadãos (sem biometria nem identificação individual).
 
 ---
 
-## 2. O Modelo Matemático da Travessia
+## 2. Modelo Matemático e Parâmetros
 
 ### 2.1 Variáveis e Parâmetros Fundamentais
 
-| Símbolo | Descrição | Unidade | Origem |
-|---|---|---|---|
-| $L$ | Largura da via / extensão da faixa | metros (m) | API HAWK (`largura_via_m`) |
-| $v$ | Velocidade média de referência | m/s | Norma de Trânsito ($0{,}60$ m/s para vulneráveis) |
-| $m$ | Margem de segurança | segundos (s) | Norma técnica ($5{,}0$ s) |
-| $T_{min}$ | Tempo mínimo seguro de travessia | segundos (s) | Fórmula analítica e API (`/calculos/tempo-minimo`) |
-| $T$ | Tempo real de duração da travessia | segundos (s) | API HAWK (`tempo_travessia_s`) |
-| $s$ | Tempo normalizado de travessia ($s = t / T$) | adimensional | Variável auxiliar ($0 \le s \le 1$) |
-| $\lambda$ | Taxa média de chegada de veículos na via | veíc/s | Premissa simulada ($0{,}20$ veíc/s $\approx 720$ veíc/h) |
-| $\mu_{sat}$ | Taxa de saturação / escoamento veicular | veíc/s | Premissa simulada ($0{,}50$ veíc/s $\approx 1800$ veíc/h) |
+| Parâmetro | Símbolo | Valor de Referência | Unidade | Origem / Justificativa |
+|---|---|---|---|---|
+| Largura da via | $L$ | $10{,}0$ | metros (m) | Cruzamento de teste / API HAWK (`largura_via_m`) |
+| Velocidade de projeto | $v_{ref}$ | $0{,}60$ | m/s | Norma de acessibilidade para pedestres vulneráveis |
+| Margem de segurança | $margem$ | $5{,}0$ | segundos (s) | Tempo de percepção e reação / API (`/calculos/tempo-minimo`) |
+| Tempo mínimo regulamentar | $T_{min}$ | $21{,}67$ | segundos (s) | Equação normativa: $T_{min} = L / v_{ref} + margem$ |
+| Tempo real do pedestre lento | $T$ | $28{,}0$ | segundos (s) | Travessia assistida (+29,2% sobre $T_{min}$, faixa de extensão) |
+| Variável normalizada | $s$ | $t / T$ | adimensional | Intervalo contínuo $s \in [0, 1]$ para $t \in [0, T]$ |
+| Taxa de chegada veicular | $\lambda$ | $0{,}20$ | veículos/s | Premissa simulada ($\approx 720$ veíc/h retidos no vermelho) |
+| Taxa de escoamento na fase | $\mu$ | $0$ | veículos/s | Carros parados durante o sinal verde para pedestres |
 
-### 2.2 Tempo Mínimo Regulamentar ($T_{min}$)
+### 2.2 Equações Analíticas da Travessia
 
-O cálculo do tempo regulamentar segue a equação recomendada por normas de engenharia de tráfego para pedestres vulneráveis:
+Para modelar o pedestre partindo do repouso na calçada de origem ($v(0) = 0$) e parando ao atingir a calçada de destino ($v(T) = 0$), adota-se o polinômio cúbico suave com derivadas contínuas de classe $C^1$:
 
-$$T_{min} = \frac{L}{v} + m$$
-
-Para uma via típica de $L = 14{,}0$ metros:
-
-$$T_{min} = \frac{14{,}0}{0{,}60} + 5{,}0 = 23{,}33 + 5{,}0 = 28{,}33\text{ s}$$
-
-Tanto a função local `modelo.tempo_minimo(14.0)` quanto a chamada ao endpoint `/calculos/tempo-minimo?largura=14.0` devolvem exatamente $28{,}33$ s, garantindo alinhamento total entre a modelagem matemática e os serviços da API.
-
-### 2.3 Modelos de Posição: Linear vs. Suave (Cúbico)
-
-O modelo convencional assume velocidade constante ($x(t) = v \cdot t$). No entanto, um pedestre real inicia a caminhada em repouso ($v(0) = 0$), acelera, atinge uma velocidade máxima e desacelera até o repouso ao subir na calçada oposta ($v(T) = 0$).
-
-Para representar fielmente esse fenômeno com derivadas contínuas de classe $C^1$, adota-se um polinômio cúbico interpolador de Hermite com a variável normalizada $s = t/T \in [0, 1]$:
-
-$$x(t) = L \cdot \left(3s^2 - 2s^3\right)$$
-
-- Em $t = 0$ ($s = 0$): $x(0) = L(0) = 0$.
-- Em $t = T/2$ ($s = 0{,}5$): $x(T/2) = L(3(0{,}25) - 2(0{,}125)) = L(0{,}75 - 0{,}25) = 0{,}5L$ (metade da via).
-- Em $t = T$ ($s = 1$): $x(T) = L(3(1) - 2(1)) = L$ (calçada oposta).
-
-![Gráfico da Posição](../graficos/grafico_posicao.png)
-
-*Interpretação do Gráfico:* A curva azul (modelo suave) demonstra claramente as fases de partida suave e chegada amortecida em comparação à reta pontilhada laranja (modelo linear). Isso elimina descontinuidades físicas de velocidade e aceleração instantânea.
+1. **Posição:**
+   $$x(t) = L \cdot \left(3s^2 - 2s^3\right), \quad s = \frac{t}{T}$$
+2. **Velocidade Instantânea ($x'(t)$):**
+   $$v(t) = \frac{dx}{dt} = \frac{6L}{T} \cdot \left(s - s^2\right)$$
+3. **Aceleração Instantânea ($v'(t)$):**
+   $$a(t) = \frac{dv}{dt} = \frac{6L}{T^2} \cdot \left(1 - 2s\right)$$
+4. **Fila de Veículos Acumulada ($Q(t)$):**
+   $$Q(t) = \int_0^t \lambda\,d\tau = \lambda \cdot t \quad (\text{com } \mu = 0)$$
 
 ---
 
 ## 3. Estudo dos Limites Matemáticos
 
-O conceito de limite é a base teórica que fundamenta a existência do sistema HAWK Cross.
+Dois limites fundamentais justificam matematicamente a dinâmica da travessia e a regra de decisão de extensão semafórica:
 
-### 3.1 Continuidade e Aproximação da Calçada Oposta
+### 3.1 Limite 1: Chegada ao Outro Lado da Faixa (Continuidade)
 
-À medida que o tempo $t$ se aproxima da duração total $T$ pela esquerda ($t \to T^-$):
+$$\lim_{t \to T^-} x(t) = \lim_{s \to 1^-} L(3s^2 - 2s^3) = L$$
 
-$$\lim_{t \to T^-} x(t) = L \quad \text{e} \quad \lim_{t \to T^-} d(t) = \lim_{t \to T^-} [L - x(t)] = 0$$
+*Interpretação:* A função de posição é contínua e suave em todo o intervalo fechado $[0, T]$. Ao completar o tempo total concedido $T$, o pedestre atinge exatamente a extensão total da via $x(T) = L = 10{,}0$ m, garantindo a conclusão integral da travessia.
 
-A tabela numérica gerada pelo sistema demonstra essa convergência:
+### 3.2 Limite 2: Velocidade Exigida para Terminar no Prazo Fixo ($v_{req} \to +\infty$)
 
-| Passo $h = T - t$ (s) | $t$ (s) | Posição $x(t)$ (m) | Distância Restante $d(t)$ (m) |
+Definindo a distância restante até a calçada como $d(t) = L - x(t)$, a velocidade média necessária para que o pedestre conclua a travessia antes que o tempo fixo $T_{min}$ se esgote é dada por:
+
+$$v_{req}(t) = \frac{L - x(t)}{T_{min} - t}, \quad \text{para } t < T_{min}$$
+
+Se o pedestre é vulnerável e leva $T = 28{,}0$ s, no instante limite do tempo regulamentar fixo ($t = T_{min} = 21{,}67$ s) sua posição é de apenas $x(21{,}67) \approx 8{,}70$ m, restando ainda $d(T_{min}) \approx 1{,}30$ m na via. Portanto:
+
+$$\lim_{t \to T_{min}^-} v_{req}(t) = \lim_{t \to T_{min}^-} \frac{1{,}30}{T_{min} - t} = +\infty$$
+
+A tabela numérica gerada pelo sistema demonstra a explosão dessa grandeza à medida que o tempo limite se aproxima:
+
+| Passo $h = T_{min} - t$ (s) | Instante $t$ (s) | Distância Restante $d(t)$ (m) | Velocidade Requerida $v_{req}$ (m/s) |
 |---|---|---|---|
-| $1{,}000000$ | $27{,}300000$ | $13{,}9532$ | $0{,}0468$ |
-| $0{,}100000$ | $28{,}200000$ | $13{,}9995$ | $0{,}0005$ |
-| $0{,}010000$ | $28{,}290000$ | $14{,}0000$ | $0{,}0000$ |
-| $0{,}000001$ | $28{,}299999$ | $14{,}0000$ | $0{,}0000$ |
+| $1{,}000$ | $20{,}667$ | $1{,}70$ | $1{,}70$ |
+| $0{,}100$ | $21{,}567$ | $1{,}34$ | $13{,}4$ |
+| $0{,}010$ | $21{,}657$ | $1{,}31$ | $130{,}7$ |
+| $0{,}001$ | $21{,}666$ | $1{,}30$ | $1303{,}8$ |
 
-### 3.2 O Limite Infinito da Velocidade Requerida e a Necessidade da Extensão
+![Velocidade Requerida e Assíntota](../graficos/02_velocidade_requerida.png)
 
-Seja $T_{lim}$ o tempo de verde programado pelo semáforo e $d(t) = L - x(t)$ a distância que falta para o pedestre concluir a travessia. A velocidade que o pedestre precisaria desenvolver para não ser atropelado quando o sinal fechar é dada por:
-
-$$v_{req}(t) = \frac{d(t)}{T_{lim} - t}$$
-
-Se o pedestre caminha lentamente e ainda se encontra na faixa ao aproximar-se do prazo ($d(T_{lim}) = d^* > 0$):
-
-$$\lim_{t \to T_{lim}^-} v_{req}(t) = \lim_{\Delta t \to 0^+} \frac{d^*}{\Delta t} = +\infty$$
-
-![Velocidade Requerida com Assíntota](../graficos/grafico_velocidade_requerida.png)
-
-*Interpretação Matemática e Teórica:* Exigir que um pedestre vulnerável termine a travessia dentro de um tempo fixo insuficiente requer uma velocidade fisicamente impossível ($v_{req} \to +\infty$). Como o ser humano não pode acelerar infinitamente, a única solução matematicamente e eticamente aceitável é **alterar o denominador**, estendendo o tempo $T_{lim} \to T_{ext}$, o que remove a assíntota e traz $v_{req}$ de volta aos limites da capacidade humana.
-
-### 3.3 Limite do Quociente de Diferenças
-
-O limite fundamental da derivada representa a taxa de variação instantânea:
-
-$$\lim_{h \to 0} \frac{x(t + h) - x(t)}{h} = x'(t) = v(t)$$
-
-![Convergência do Quociente de Diferenças](../graficos/grafico_convergencia_limites.png)
-
-A convergência em escala logarítmica confirma o comportamento de aproximação linear de primeira ordem, atingindo erro relativo inferior a $10^{-6}$ quando $h \le 10^{-5}$ s.
+*Interpretação do Gráfico:* À medida que o tempo fixo de proteção expira sem que o pedestre tenha alcançado a calçada oposta, a velocidade necessária para evitar um atropelamento tende ao infinito. Como nenhum pedestre vulnerável pode acelerar a essas magnitudes, **é esse limite infinito que fundamenta ética e matematicamente o algoritmo do HAWK Cross: estender dinamicamente o denominador ($T_{min} \to T$), eliminando a assíntota e protegendo a vida**.
 
 ---
 
-## 4. Derivadas e Perfil Dinâmico
+## 4. Derivadas e Ponto Crítico de Máxima Velocidade
 
-### 4.1 Velocidade Instantânea
+A análise da primeira e da segunda derivada da posição descreve o perfil biomecânico da caminhada:
 
-Diferenciando a posição $x(t) = L(3s^2 - 2s^3)$ com relação a $t$ via regra da cadeia ($\frac{ds}{dt} = \frac{1}{T}$):
+- **Velocidade instantânea:** $v(t) = (6L/T)(s - s^2)$.
+- **Ponto crítico:** O extremo ocorre onde $v'(t) = a(t) = 0$:
+  $$a(t) = \frac{6L}{T^2}(1 - 2s) = 0 \implies 1 - 2s = 0 \implies s = \frac{1}{2} \iff t = \frac{T}{2}$$
+- **Velocidade máxima:**
+  $$v_{max} = v\left(\frac{T}{2}\right) = \frac{6L}{T}\left(\frac{1}{2} - \frac{1}{4}\right) = 1{,}5 \cdot \frac{L}{T} = 1{,}5 \cdot v_{médio}$$
 
-$$v(t) = \frac{dx}{dt} = \frac{dx}{ds} \cdot \frac{ds}{dt} = L(6s - 6s^2) \cdot \frac{1}{T} = \frac{6L}{T} \cdot (s - s^2)$$
+Para os dados do cruzamento de teste ($L = 10{,}0$ m e $T = 28{,}0$ s):
+- Velocidade média: $v_{médio} = 10 / 28 \approx 0{,}357$ m/s.
+- Velocidade máxima no centro da via: $v_{max} = 1{,}5 \times 0{,}357 \approx 0{,}536$ m/s em $t = 14{,}0$ s.
+- Repouso inicial e final: $v(0) = v(28) = 0{,}0$ m/s.
 
-Propriedades fundamentais verificadas:
-1. $v(0) = \frac{6L}{T}(0 - 0) = 0$ (partida do repouso).
-2. $v(T) = \frac{6L}{T}(1 - 1) = 0$ (chegada em repouso).
-3. O ponto crítico de velocidade máxima ocorre quando $v'(t) = a(t) = 0$, isto é, em $s = 0{,}5$ ($t = T/2$):
-   $$v_{max} = \frac{6L}{T}(0{,}5 - 0{,}25) = \frac{6L}{T}(0{,}25) = 1{,}5 \cdot \frac{L}{T} = 1{,}5 \cdot v_{méd}$$
+![Cinemática de Travessia e Ponto Crítico](../graficos/01_posicao_velocidade.png)
 
-### 4.2 Aceleração Instantânea
-
-Diferenciando a velocidade com relação a $t$:
-
-$$a(t) = \frac{dv}{dt} = \frac{6L}{T^2} \cdot (1 - 2s)$$
-
-- Para $s \in [0; 0{,}5)$ ($t < T/2$): $1 - 2s > 0 \implies a(t) > 0$ (Aceleração positiva).
-- Em $s = 0{,}5$ ($t = T/2$): $a(t) = 0$ (Ponto de inflexão da curva de posição, velocidade máxima).
-- Para $s \in (0{,}5; 1]$ ($t > T/2$): $1 - 2s < 0 \implies a(t) < 0$ (Desaceleração).
-
-![Velocidade e Aceleração](../graficos/grafico_velocidade_aceleracao.png)
-
-*Comparação Numérica:* A derivada numérica por diferença central $f'(t) \approx \frac{f(t+h) - f(t-h)}{2h}$ implementada em `derivadas.py` conferiu com a analítica com erro absoluto de $1{,}86 \times 10^{-11}$ m/s (ordem de precisão da máquina).
+*Interpretação do Gráfico:* O gráfico superior demonstra a transição suave de posição de $0$ a $10$ m. O gráfico inferior ilustra a velocidade em parábola invertida com pico de $0{,}536$ m/s em $t = 14$ s (metade da via) e destaca a área hachurada sob a curva, que equivale geometricamente ao deslocamento total $L = 10$ m.
 
 ---
 
-## 5. Integrais e Deslocamento
+## 5. Integrais e Grandezas Acumuladas
 
-### 5.1 Teorema Fundamental do Cálculo
+O cálculo integral é utilizado para quantificar duas grandezas físicas acumuladas cruciais para o sistema:
 
-A distância total percorrida pelo pedestre entre $t = 0$ e $t = T$ corresponde à integral definida da velocidade instantânea:
+### 5.1 Deslocamento do Pedestre (Teorema Fundamental do Cálculo)
 
-$$\Delta x = \int_0^T v(t)\,dt = \int_0^T \frac{6L}{T}\left(\frac{t}{T} - \frac{t^2}{T^2}\right) dt$$
+A distância percorrida pelo pedestre entre $t = 0$ e $t = T$ é a integral definida de sua velocidade:
 
-Resolvendo analiticamente:
+$$\Delta x = \int_0^T v(t)\,dt = \int_0^T \frac{6L}{T}\left(\frac{t}{T} - \frac{t^2}{T^2}\right)dt = \frac{6L}{T}\left[\frac{t^2}{2T} - \frac{t^3}{3T^2}\right]_0^T = \frac{6L}{T}\left(\frac{T}{6}\right) = L$$
 
-$$\Delta x = \frac{6L}{T} \left[ \frac{t^2}{2T} - \frac{t^3}{3T^2} \right]_0^T = \frac{6L}{T} \left( \frac{T}{2} - \frac{T}{3} \right) = \frac{6L}{T} \left( \frac{T}{6} \right) = L$$
+Para $L = 10{,}0$ m, a área sob a curva de $v(t)$ recupera exatamente $10{,}0$ metros de deslocamento.
 
-A integral da velocidade recupera exatamente a largura da via $L$.
+### 5.2 Fila de Veículos e Custo da Extensão Semafórica
 
-![Área da Integral](../graficos/grafico_integral_area.png)
+Durante o sinal verde para pedestres, os veículos na via transversal permanecem parados ($\mu = 0$). Com taxa média de chegada $\lambda = 0{,}20$ veículos/s:
 
-### 5.2 Avaliação Numérica: Trapézio vs. Simpson
+$$Q(t) = \int_0^t \lambda\,d\tau = \lambda \cdot t$$
 
-Implementadas sem bibliotecas de terceiros, as regras numéricas foram avaliadas para recuperar $L = 14{,}0$ m:
+Comparando o término no tempo nominal $T_{min}$ versus o tempo estendido $T$:
+- **Fila no tempo nominal ($T_{min} = 21{,}67$ s):** $Q(21{,}67) = 0{,}20 \times 21{,}67 \approx 4{,}33$ veículos.
+- **Fila no tempo estendido ($T = 28{,}0$ s):** $Q(28) = 0{,}20 \times 28 = 5{,}60$ veículos.
+- **Custo urbano da extensão:**
+  $$\Delta Q = Q(T) - Q(T_{min}) = \lambda \cdot (T - T_{min}) = 0{,}20 \times (28 - 21{,}67) \approx 1{,}27 \text{ veículo}$$
 
-| Subintervalos $n$ | Regra do Trapézio (m) | Erro Trapézio | Regra de Simpson 1/3 (m) | Erro Simpson |
-|---|---|---|---|---|
-| 10 | $13{,}86000000$ | $1{,}40 \times 10^{-1}$ | $14{,}00000000$ | $0{,}00$ (Exato para polinômio quadrático) |
-| 100 | $13{,}99860000$ | $1{,}40 \times 10^{-3}$ | $14{,}00000000$ | $< 10^{-12}$ |
-| 1000 | $13{,}99998600$ | $1{,}40 \times 10^{-5}$ | $14{,}00000000$ | $< 10^{-12}$ |
+![Evolução da Fila de Veículos](../graficos/03_fila_veiculos.png)
 
-Como $v(t)$ é uma função quadrática de $t$, a Regra de Simpson 1/3 (baseada em interpolação parabólica) recupera a integral de forma teoricamente exata, já no primeiro escalão com $n = 10$.
-
----
-
-## 6. Dinâmica da Fila de Veículos
-
-A retenção semafórica gera acúmulo de veículos na via transversal. Modelamos essa dinâmica pela Equação de Conservação de Fluxo:
-
-$$\frac{dQ}{dt} = \lambda - \mu(t), \quad Q(0) = Q_0 = 0$$
-
-- Durante o sinal verde para pedestres ($t \in [0, T_{fase}]$): $\mu(t) = 0 \implies \frac{dQ}{dt} = \lambda \implies Q(t) = \lambda \cdot t$.
-- No instante de término da travessia ($t = T_{fase}$), a fila atinge o pico: $Q_{pico} = \lambda \cdot T_{fase}$.
-- Após o término ($t > T_{fase}$), o sinal verde abre para veículos e o fluxo escoa na capacidade saturada $\mu(t) = \mu_{sat}$:
-  $$\frac{dQ}{dt} = \lambda - \mu_{sat} < 0 \implies Q(t) = Q_{pico} - (\mu_{sat} - \lambda)(t - T_{fase})$$
-- A fila se dissipa completamente em:
-  $$t_{dissipacao} = \frac{Q_{pico}}{\mu_{sat} - \lambda}$$
-
-### 6.1 Análise Comparativa: Cenário Normal vs. Cenário com Extensão HAWK
-
-Adotando premissas de engenharia de tráfego ($\lambda = 0{,}20$ veíc/s $\approx 720$ veíc/h; $\mu_{sat} = 0{,}50$ veíc/s $\approx 1800$ veíc/h; $L = 14{,}0$ m $\implies T_{min} = 28{,}3$ s):
-
-| Métrica | Cenário Normal ($T_{min}$) | Cenário Estendido HAWK ($+25\%$) | Impacto Adicional |
-|---|---|---|---|
-| Duração da Fase de Pedestres | $28{,}3$ s | $35{,}4$ s | $+7{,}1$ s |
-| Fila Máxima no Pico ($Q_{pico}$) | $5{,}66$ veículos | $7{,}08$ veículos | $+1{,}42$ veículos |
-| Tempo de Dissipação da Fila | $18{,}87$ s | $23{,}60$ s | $+4{,}73$ s |
-| Tempo Total do Ciclo de Fila | $47{,}17$ s | $59{,}00$ s | $+11{,}83$ s |
-| Atraso Total Acumulado (Área $Q$) | $133{,}5$ veíc$\cdot$s | $208{,}9$ veíc$\cdot$s | $+75{,}4$ veíc$\cdot$s |
-
-![Evolução Temporal da Fila de Veículos](../graficos/grafico_fila_veiculos.png)
-
-*Conclusão do Trade-off:* A extensão adaptativa de $7{,}1$ segundos para garantir a travessia segura de um idoso ou cadeirante provoca um acréscimo de **menos de 2 veículos na fila máxima** e requer apenas $4{,}7$ segundos adicionais para a via voltar à condição de fluxo livre. Isso prova que a acessibilidade urbana plena é perfeitamente viável sem comprometer a malha de tráfego.
+*Interpretação do Gráfico:* A curva linear destaca a retenção acumulada sob a taxa constante $\lambda = 0{,}20$ veíc/s. A extensão de $6{,}33$ segundos para salvar a vida de um pedestre vulnerável adiciona apenas **$\approx 1{,}3$ veículo a mais** à fila veicular, provando quantitativamente que a priorização da segurança humana tem impacto negligenciável na malha viária.
 
 ---
 
-## 7. Resultados Integrados com a API HAWK
+## 6. Análise com Dados Reais da API HAWK
 
-A integração do módulo de matemática com os endpoints da API HAWK (`/eventos`, `/relatorios/tempos` e `/cruzamentos`) permitiu cruzar os modelos teóricos com amostras reais coletadas:
+A aplicação integra os modelos analíticos com a API HAWK em produção através da rota `GET /relatorios/tempos`. A métrica de `tempo_medio_travessia_s` observada nos eventos coletados na via permite calcular a velocidade média empírica do público atendido:
 
-![Histograma de Travessias](../graficos/grafico_histograma_travessias.png)
+$$v_{médio} = \frac{L}{tempo\_medio\_travessia\_s}$$
 
-1. **Amostra Analisada:** Os tempos reais de travessia concentram-se em torno de $23{,}5$ s, com travessias lentas chegando a $35$ s.
-2. **Taxa de Extensões:** A API registrou uma taxa global de extensões de $28{,}6\%$, condizente com a presença esperada de pedestres com ritmos diferenciados em cruzamentos centrais.
-3. **Consistência Numérica:** Todos os cálculos locais em Python conferem com as métricas retornadas pelos endpoints da API, consolidando a opção arquitetural (C) definida pelo grupo.
+Ao comparar $v_{médio}$ com a velocidade normativa de projeto ($v_{ref} = 0{,}60$ m/s), identifica-se a demanda real por adaptação temporal no cruzamento. Quando a rota remota está indisponível ou em cruzamentos recém-cadastrados sem eventos prévios, o sistema utiliza o exemplo simulado de referência ($L = 10{,}0$ m, $T = 28{,}0$ s, $v_{médio} = 0{,}357$ m/s), explicitamente identificado no console como premissa de simulação.
 
 ---
 
-## 8. Considerações Finais e Éticas
+## 7. Conclusão e Subsídios ao Protótipo CitizenTech
 
-O desenvolvimento deste estudo consolidou as seguintes conclusões:
+Os resultados obtidos fornecem uma fundamentação quantitativa sólida para o protótipo HAWK Cross:
 
-1. **Rigor Matemático e Acessibilidade:** O cálculo diferencial e integral provou ser indispensável para fundamentar a tecnologia assistiva urbana. A modelagem suave cúbica de $x(t)$, a assíntota de $v_{req}$ e a conservação de fluxo de veículos demonstram a viabilidade técnica e a necessidade social da travessia adaptativa.
-2. **Autonomia Computacional:** Todo o motor matemático foi implementado em Python padrão, garantindo portabilidade, eficiência e transparência algorítmica, sem "caixas-pretas" ou dependências desnecessárias.
-3. **Respeito aos Limites Éticos:** O HAWK Cross reitera seu compromisso com a privacidade: nenhum dado biométrico, identificador de pessoa ou diagnóstico médico é coletado. A decisão de extensão baseia-se unicamente no espaço físico ocupado na via e na dinâmica do tempo de travessia.
+1. **Justificativa Ética e Matemática:** O limite infinito $v_{req} \to +\infty$ quando $t \to T_{min}^-$ demonstra com rigor irrefutável que tempos semafóricos rígidos impõem exigências fisicamente inatingíveis a pedestres lentos, justificando a intervenção adaptativa do algoritmo.
+2. **Trade-off Urbano Favorável:** A modelagem integral da fila comprova que estender a fase de pedestres em cerca de $6{,}3$ segundos custa apenas $\approx 1{,}3$ veículo adicional retido, desmistificando a ideia de que a acessibilidade urbana prejudica a mobilidade dos automóveis.
+3. **Decisão Calibrável:** O algoritmo opera com parâmetros ajustáveis ($L$, $T_{min}$, $\lambda$), permitindo que gestores de tráfego calibrem a sensibilidade da extensão conforme o horário e a densidade de pedestres.
+4. **Limitações do Estudo:** Trata-se de uma prova de conceito acadêmica baseada em premissas simuladas para taxas veiculares e sem homologação do CONTRAN/SENATRAN para controle semafórico ativo.
