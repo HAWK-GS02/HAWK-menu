@@ -1,15 +1,8 @@
 # HAWK Cross — Console (Gerenciamento, Simulação e Modelagem Matemática)
 
 Aplicação integrada de console em Python para gerenciamento de cruzamentos semafóricos adaptativos, simulação de travessias acessíveis, persistência local e modelagem matemática.
-A modelagem matemática do projeto é reduzida ao essencial para justificar a proteção aos pedestres: limites de velocidade requerida ($v_{req} \to +\infty$), perfil suave via derivadas ($v(t) = x'(t)$ com pico em $t = T/2$), e cálculo de grandezas acumuladas por integrais (deslocamento $\int v\,dt = L$ e fila simulada $\Delta Q \approx 1{,}3$ veículo).
 
-> **Aviso Legal e Limites do Projeto:**  
-> Este software é uma **proposta acadêmica** desenvolvida para as disciplinas de *Computational Thinking with Python* e *Matemática*.  
-> - **NÃO** controla semáforos reais e não deve ser implantado em vias públicas.  
-> - **NÃO** comanda abertura de sinais (apenas registra/simula eventos e consulta métricas).  
-> - **NÃO** realiza reconhecimento facial, biometria nem rastreamento ou classificação individual de pessoas.  
-> - **NÃO** é um sistema homologado ou certificado para segurança viária.  
-> - Todos os dados de simulação são explicitamente identificados (`origem = "simulacao_console"`).
+A modelagem matemática do projeto é reduzida ao essencial para justificar a proteção aos pedestres: limites de velocidade requerida ($v_{req} \to +\infty$), perfil suave via derivadas ($v(t) = x'(t)$ com pico em $t = T/2$), e cálculo de grandezas acumuladas por integrais (deslocamento $\int v\,dt = L$ e fila simulada $\Delta Q \approx 1{,}3$ veículo).
 
 ---
 
@@ -23,10 +16,9 @@ O **HAWK Cross** monitora a ocupação da faixa de pedestres durante a fase de v
 
 ## Requisitos do Sistema
 
-- **Python:** Versão estável mais recente (mínimo Python 3.10 para suporte pleno a `match/case`).
+- **Python:** Versão 3.10 ou superior (suporte nativo a `match/case` e tipagem estática moderna).
 - **Dependências Externas:** `requests`, `matplotlib` e `rich` (declaradas em `requirements.txt`).
-- **Sem bibliotecas matemáticas pesadas:** Modelagem realizada em Python padrão puro (sem `numpy`, `scipy` ou `sympy`).
-- **Interface Enriquecida:** Terminal visual formatado com a biblioteca `rich` (painéis com bordas, tabelas coloridas e fluxo limpo).
+- **Interface Enriquecida:** Terminal visual formatado com a biblioteca `rich` (painéis com bordas, tabelas coloridas, divisores estilizados e fluxo limpo).
 
 ---
 
@@ -34,7 +26,7 @@ O **HAWK Cross** monitora a ocupação da faixa de pedestres durante a fase de v
 
 ### 1. Clonar o Repositório
 ```bash
-git clone <URL_DO_REPOSITORIO>
+git clone https://github.com/HAWK-GS02/HAWK-menu.git
 cd HAWK-menu
 ```
 
@@ -96,11 +88,15 @@ A interface de terminal foi desenvolvida com a biblioteca **Rich**, fornecendo c
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Se a rede estiver indisponível ou o servidor estiver hibernando, a aplicação entra automaticamente em **Modo Offline**, permitindo a consulta segura aos dados armazenados no cache local (`dados/cache_api.json`).
+### Resiliência e Modo Offline
+Se a rede estiver indisponível ou o servidor estiver hibernando (cold start do plano gratuito do Render), a aplicação entra automaticamente em **Modo Offline**, permitindo a consulta segura aos dados armazenados no cache local (`dados/cache_api.json`) e bloqueando com segurança operações de escrita para manter a integridade dos dados.
+
+### Validações Embutidas
+Todas as validações de entrada do usuário são tratadas diretamente dentro das próprias funções com blocos `try/except` e loops interativos. Rejeitam valores vazios, tipos inválidos, opções fora de faixa e IDs mal formatados, garantindo que o programa nunca seja interrompido por entradas inesperadas.
 
 ---
 
-## Roteiro de Demonstração (5 a 7 minutos)
+## Roteiro de Demonstração
 
 Para apresentações e avaliações acadêmicas, siga este roteiro de ponta a ponta:
 
@@ -111,7 +107,7 @@ Para apresentações e avaliações acadêmicas, siga este roteiro de ponta a po
    - Acesse `[3] Cadastrar novo cruzamento`: cadastre um cruzamento (ex: *Av. Paulista com Augusta*, largura *10.0 m*). Mostre a validação com coordenadas `(lat, lon)` e o ID gerado.
 3. **Simulação de Travessia Adaptativa (Opção 4):**
    - Acesse `[1] Executar Simulação Individual`. Selecione o cruzamento recém-criado.
-   - Escolha o cenário `[2] Extensao`: visualize o evento `travessia_estendida` onde o tempo adicional de proteção foi acionado.
+   - Escolha o cenário `[2] Extensão`: visualize o evento `travessia_estendida` onde o tempo adicional de proteção foi acionado.
    - Em seguida, escolha o cenário `[3] Falha`: destaque o painel vermelho de **Alerta de Segurança** informando que o servidor gerou automaticamente uma **ocorrência de prioridade alta**.
 4. **Gerenciamento de Ocorrências (Opção 2):**
    - Acesse `[1] Listar ocorrências` para ver a ocorrência gerada pelo cenário de falha.
@@ -132,40 +128,47 @@ Para apresentações e avaliações acadêmicas, siga este roteiro de ponta a po
 
 ## Estrutura do Repositório
 
-```
-hawk-cross-console/
-├── AGENTS.md                  # Contexto, regras de negócio e limites éticos
-├── README.md                  # Documentação principal e roteiro de apresentação
-├── requirements.txt           # Dependências (requests, matplotlib, rich)
-├── .env.example               # Modelo de variáveis de ambiente
-├── .gitignore                 # Arquivos ignorados pelo Git
-├── main.py                    # Ponto de entrada do sistema
-├── docs/
-│   ├── etapas/                # Roteiro das etapas de desenvolvimento (07 e 08)
-│   └── rastreabilidade.md     # Matriz de atendimento aos requisitos acadêmicos
-├── src/hawk/
-│   ├── config.py              # Constantes, caminhos e tuplas de enums
-│   ├── api_client.py          # Cliente HTTP centralizado e tratamento de status
-│   ├── formatacao.py          # Formatação de tabelas, painéis e cores com Rich
-│   ├── persistencia.py        # Escrita atômica em JSON, cache e histórico local
-│   ├── sessao.py              # Gerenciamento de estado online/offline
-│   ├── menus/
-│   │   ├── principal.py       # Loop principal de navegação estilizado com Rich
-│   │   ├── cruzamentos.py     # CRUD de cruzamentos
-│   │   ├── ocorrencias.py     # CRUD de ocorrências e PATCH de situação
-│   │   ├── eventos.py         # Histórico, eventos manuais e estado atual
-│   │   ├── simulacoes.py      # Simulação individual e em lote (dados simulados)
-│   │   ├── relatorios.py      # Relatórios operacionais e consolidados
-│   │   └── matematica.py      # Menu integrado da modelagem matemática (5 opções)
-│   └── matematica/
-│       ├── modelo.py          # Modelo simplificado: limites, derivadas, integrais e fila
-│       └── graficos.py        # Geração dos 3 gráficos técnicos com matplotlib
-├── dados/                     # cache_api.json, historico_local.json, calculos.json
-├── graficos/                  # 3 figuras PNG técnicas geradas (01, 02 e 03)
-├── relatorio/
-│   └── relatorio_matematico.md # Relatório formal completo em Markdown (7 tópicos)
-└── tests/                     # Bateria de testes automatizados com unittest
-    └── test_matematica.py     # 4 testes cobrindo limites, derivadas, integrais e fila
+```text
+HAWK-menu/
+├── .env.example                       # Modelo de variáveis de ambiente
+├── .gitignore                         # Regras de exclusão do Git (.venv, pycache, etc.)
+├── main.py                            # Ponto de entrada da aplicação
+├── prompts.md                         # Registro de uso de Inteligência Artificial e rastreabilidade
+├── README.md                          # Documentação principal e guia de apresentação
+├── requirements.txt                   # Dependências do projeto (requests, matplotlib, rich)
+├── dados/                             # Camada de persistência local em JSON
+│   ├── cache_api.json                 # Cache local das consultas da API para suporte offline
+│   ├── calculos.json                  # Parâmetros e estado salvo dos cálculos matemáticos
+│   ├── historico_local.json           # Registro cronológico de auditoria das ações do console
+│   └── relatorios/                    # Exportações geradas (.json estruturado e .txt legível)
+├── graficos/                          # Gráficos técnicos gerados com Matplotlib
+│   ├── 01_posicao_velocidade.png      # Curvas de posição x(t) e velocidade instantânea v(t)
+│   ├── 02_velocidade_requerida.png    # Curva v_req(t) com assíntota vertical em T_min
+│   └── 03_fila_veiculos.png           # Fila de veículos acumulada Q(t) (premissa simulada)
+├── relatorio/                         # Relatório acadêmico da disciplina de Matemática
+│   └── relatorio_matematico.md        # Relatório formal completo em Markdown (7 tópicos)
+├── src/                               # Código-fonte da aplicação
+│   └── hawk/                          # Pacote principal HAWK
+        ├── __init__.py                # Inicializador do pacote
+        ├── config.py                  # Constantes, URLs, timeouts e tuplas de enums
+        ├── api_client.py              # Cliente HTTP centralizado (22 endpoints)
+        ├── formatacao.py              # Utilitários de interface visual e temas Rich
+        ├── persistencia.py            # Escrita atômica em JSON, cache e histórico local
+        ├── sessao.py                  # Gerenciador de estado de conexão (online/offline)
+        ├── matematica/                # Modelagem matemática e cinemática de pedestres
+        │   ├── __init__.py            # Inicializador do submódulo
+        │   ├── modelo.py              # Equações fundamentais (limites, derivadas e integrais)
+        │   └── graficos.py            # Geração dos 3 gráficos técnicos com Matplotlib
+        └── menus/                     # Submenus interativos estilizados com Rich
+            ├── __init__.py            # Inicializador do submódulo
+            ├── principal.py           # Loop de navegação e menu principal
+            ├── cruzamentos.py         # CRUD de cruzamentos semafóricos
+            ├── ocorrencias.py         # CRUD e ciclo de vida de ocorrências
+            ├── eventos.py             # Histórico, eventos manuais e estado atual
+            ├── simulacoes.py          # Simulação individual e em lote (dados simulados)
+            ├── relatorios.py          # Relatórios operacionais e consolidados
+            └── matematica.py          # Menu interativo da modelagem matemática
+
 ```
 
 ---
@@ -178,17 +181,31 @@ O sistema conta com testes automatizados desenvolvidos com o framework `unittest
 python -m unittest discover -s tests -v
 ```
 
-Os 4 testes cobrem:
-1. `tempo_minimo(10) ≈ 21.667 s`
-2. `posicao(T) == L` e `velocidade(0) == velocidade(T) == 0`
-3. `velocidade_maxima(10, 28) ≈ 0.5357 m/s` (atingida em $t = T/2$)
-4. `custo_extensao(21.667, 28) ≈ 1.267 veículos` (com $\lambda = 0{,}20$ veíc/s)
+### Casos de Teste Cobertos:
+1. `test_tempo_minimo`: Confere $T_{min} = L/v + m \approx 21{,}667\text{ s}$ para $L = 10\text{ m}$, $v_{ref} = 0{,}6\text{ m/s}$ e margem $m = 5\text{ s}$.
+2. `test_posicao_e_velocidade_extremidades`: Valida repouso nas extremidades ($v(0) = v(T) = 0$) e percurso completo ($x(0) = 0$ e $x(T) = L$).
+3. `test_velocidade_maxima`: Confirma a velocidade máxima teórica $v_{max} = 1{,}5 \cdot (L/T) \approx 0{,}5357\text{ m/s}$ atingida no ponto crítico do meio da via ($t = T/2$).
+4. `test_custo_extensao`: Avalia a retenção adicional de tráfego veicular $\Delta Q \approx 1{,}267\text{ veículo}$ (com $\lambda = 0{,}20\text{ veíc/s}$).
+
+---
+
+## Transparência e Uso de IA
+
+O projeto conta com um arquivo [`prompts.md`](prompts.md) que documenta todas as ferramentas utilizadas, histórico de prompts, decisões arquiteturais propostas e o processo de validação técnica realizado pelo grupo.
 
 ---
 
 ## Integrantes do Grupo
 
-- Projeto Acadêmico — FIAP
+| RM | Nome |
+|----|------|
+| 570860 | Esther Tozzo |
+| 570316 | Izabela Pordeus |
+| 569949 | João Victor Santos Souza |
+| 571458 | Matheus Lopes Lima |
+| 570863 | Felipe de Oliveira Zimmermann |
+
+- **Projeto Acadêmico — FIAP**
 - **Disciplinas:**
   - *Computational Thinking with Python*
   - *Differentiated Problem Solving*

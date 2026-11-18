@@ -11,10 +11,17 @@ from src.hawk.menus.cruzamentos import selecionar_cruzamento
 
 
 def exibir_sequencia_eventos(eventos: list[dict[str, Any]]) -> None:
-    """Exibe e interpreta a sequência de eventos resultante de uma simulação."""
-    print("\n--- SEQUÊNCIA DE EVENTOS DA SIMULAÇÃO (Origem: simulacao_console) ---")
-    cabecalhos = ["Passo", "Tipo", "Estado", "Espera (s)", "Trav. (s)", "Acionador"]
-    linhas = []
+    """Exibe e interpreta a sequência de eventos resultante de uma simulação com Rich Table e Panel."""
+    formatacao.imprimir_subtitulo("Sequência de Eventos da Simulação")
+    formatacao.console.print("[dim yellow]Origem: 'simulacao_console'[/]\n")
+
+    tabela = formatacao.Table(show_header=True, header_style="bold magenta", box=formatacao.box.SIMPLE)
+    tabela.add_column("Passo", style="bold yellow", justify="center", width=6)
+    tabela.add_column("Tipo", style="cyan", width=22)
+    tabela.add_column("Estado", style="green", width=14)
+    tabela.add_column("Espera (s)", style="white", justify="right", width=11)
+    tabela.add_column("Trav. (s)", style="white", justify="right", width=11)
+    tabela.add_column("Acionador", style="magenta", justify="center", width=10)
 
     ocorrencia_auto: dict[str, Any] | None = None
 
@@ -25,35 +32,42 @@ def exibir_sequencia_eventos(eventos: list[dict[str, Any]]) -> None:
         esp_str = f"{float(esp):.1f}" if esp is not None else "-"
         trav = ev.get("tempo_travessia_s")
         trav_str = f"{float(trav):.1f}" if trav is not None else "-"
-        acionador = "SIM" if ev.get("acionador") else "NÃO"
+        acionador = "[bold green]SIM[/]" if ev.get("acionador") else "[dim]NÃO[/]"
 
-        linhas.append([i, tipo, estado, esp_str, trav_str, acionador])
+        tabela.add_row(str(i), tipo, estado, esp_str, trav_str, acionador)
 
         if ev.get("ocorrencia_criada"):
             ocorrencia_auto = ev["ocorrencia_criada"]
 
-    formatacao.formatar_tabela(cabecalhos, linhas, alinhamentos=["^", "<", "<", ">", ">", "^"])
+    formatacao.console.print(tabela)
 
     # Interpretação dos eventos com match/case
-    print("Interpretação da simulação:")
+    formatacao.console.print("\n[bold cyan]Interpretação da simulação:[/]")
     for ev in eventos:
         tipo = ev.get("tipo", "")
         match tipo:
             case "deteccao":
-                print("  * Pedestre detectado aguardando na calçada.")
+                formatacao.console.print("  [bold green]•[/] [white]Pedestre detectado aguardando na calçada.[/]")
             case "travessia_normal":
                 t = ev.get("tempo_travessia_s", 0)
-                print(f"  * Travessia concluída dentro do tempo seguro padrão ({t:.1f}s).")
+                formatacao.console.print(
+                    f"  [bold green]•[/] [white]Travessia concluída dentro do tempo seguro padrão ([bold green]{t:.1f}s[/]).[/]"
+                )
             case "travessia_estendida":
                 t = ev.get("tempo_travessia_s", 0)
-                print(f"  * [EXTENSÃO] Pedestre necessitou de tempo adicional: semáforo estendido ({t:.1f}s).")
+                formatacao.console.print(
+                    f"  [bold yellow]• [EXTENSÃO][/] [yellow]Pedestre necessitou de tempo adicional: semáforo estendido ([bold white]{t:.1f}s[/]).[/]"
+                )
             case "falha":
-                print("  * [FALHA DETECTADA] Anomalia operacional detectada no cruzamento.")
+                formatacao.console.print(
+                    "  [bold red]• [FALHA DETECTADA][/] [red]Anomalia operacional detectada no cruzamento.[/]"
+                )
             case _:
-                print(f"  * Evento: {tipo}")
+                formatacao.console.print(f"  • Evento: {tipo}")
 
     # Exibe ocorrência de segurança gerada automaticamente no servidor com Rich Panel
     if ocorrencia_auto:
+        formatacao.console.print()
         formatacao.console.print(
             formatacao.Panel(
                 f"[bold red]ID Ocorrência :[/] {ocorrencia_auto.get('id')}\n"
@@ -72,25 +86,36 @@ def simular_cenario_individual() -> None:
         return
 
     formatacao.imprimir_subtitulo("Simulação de Travessia Individual")
-    print("[ROTULO] DADOS SIMULADOS - Proposta Acadêmica HAWK Cross")
+    formatacao.console.print("[dim yellow][ROTULO] DADOS SIMULADOS - Proposta Acadêmica HAWK Cross[/]\n")
 
     cruzamento_id = selecionar_cruzamento("Cruzamento para a simulação")
     if not cruzamento_id:
-        print("Simulação cancelada.")
+        formatacao.imprimir_aviso("Simulação cancelada.")
         return
 
-    print("\nEscolha o cenário a ser simulado:")
-    print("  [1] Normal (travessia dentro do tempo padrão)")
-    print("  [2] Extensao (travessia lenta com extensão do tempo de proteção)")
-    print("  [3] Falha (anomalia de hardware gerando ocorrência automática)")
-    print("  [0] Cancelar")
+    tabela_cen = formatacao.Table(show_header=False, box=None)
+    tabela_cen.add_column("Opção", style="bold green", width=6)
+    tabela_cen.add_column("Cenário", style="bold white", width=12)
+    tabela_cen.add_column("Descrição", style="cyan")
+    tabela_cen.add_row("1", "Normal", "Travessia dentro do tempo padrão")
+    tabela_cen.add_row("2", "Extensão", "Travessia lenta com extensão do tempo de proteção")
+    tabela_cen.add_row("3", "Falha", "Anomalia de hardware gerando ocorrência automática")
+    tabela_cen.add_row("0", "Cancelar", "Retornar ao menu sem executar")
+
+    formatacao.console.print(
+        formatacao.Panel(
+            tabela_cen,
+            title="[bold cyan]Cenários Disponíveis para Simulação[/]",
+            border_style="cyan",
+        )
+    )
 
     cenario: str | None = None
     while True:
         try:
-            op = input("Cenário desejado: ").strip()
+            op = input("\nCenário desejado: ").strip()
             if op in ("0", ""):
-                print("Simulação cancelada.")
+                formatacao.imprimir_aviso("Simulação cancelada.")
                 return
             idx = int(op)
             if idx == 1:
@@ -102,11 +127,13 @@ def simular_cenario_individual() -> None:
             elif idx == 3:
                 cenario = "falha"
                 break
-            print("Opção inválida. Escolha entre 1, 2 ou 3.")
+            formatacao.imprimir_erro("Opção inválida. Escolha entre 1, 2 ou 3.")
         except ValueError:
-            print("Digite um número inteiro.")
+            formatacao.imprimir_erro("Digite um número inteiro.")
 
-    print(f"\nDisparando simulação '{cenario}' para o cruzamento ID: {cruzamento_id}...")
+    formatacao.console.print(
+        f"\n[cyan]Disparando simulação '[bold yellow]{cenario}[/]' para o cruzamento ID: [bold white]{cruzamento_id}[/]...[/]"
+    )
     ok, dados_ou_msg, _ = api_client.simular(cruzamento_id, cenario)
 
     if ok and isinstance(dados_ou_msg, dict):
@@ -139,11 +166,11 @@ def simular_em_lote() -> None:
         return
 
     formatacao.imprimir_subtitulo("Simulação em Lote (Geração de Massa de Dados)")
-    print("[ROTULO] DADOS SIMULADOS - Origem fixa: 'simulacao_console'")
+    formatacao.console.print("[dim yellow][ROTULO] DADOS SIMULADOS - Origem fixa: 'simulacao_console'[/]\n")
 
     cruzamento_id = selecionar_cruzamento("Cruzamento alvo da simulação em lote")
     if not cruzamento_id:
-        print("Simulação em lote cancelada.")
+        formatacao.imprimir_aviso("Simulação em lote cancelada.")
         return
 
     while True:
@@ -152,16 +179,16 @@ def simular_em_lote() -> None:
             qtd = int(entrada_qtd)
             if 1 <= qtd <= 100:
                 break
-            print("Escolha uma quantidade entre 1 e 100 ciclos.")
+            formatacao.imprimir_erro("Escolha uma quantidade entre 1 e 100 ciclos.")
         except ValueError:
-            print("Entrada inválida. Digite um número inteiro.")
+            formatacao.imprimir_erro("Entrada inválida. Digite um número inteiro.")
 
-    conf = input(f"Confirmar a execução de {qtd} simulações em lote? [S/n]: ").strip().lower()
+    conf = input(f"\nConfirmar a execução de {qtd} simulações em lote? [S/n]: ").strip().lower()
     if conf in ("n", "nao", "não", "no"):
-        print("Operação cancelada.")
+        formatacao.imprimir_aviso("Operação cancelada.")
         return
 
-    print(f"\nIniciando execução de {qtd} ciclos simulados...")
+    formatacao.console.print(f"\n[bold cyan]Iniciando execução de {qtd} ciclos simulados...[/]")
     contagem_cenarios = {"normal": 0, "extensao": 0, "falha": 0}
     total_eventos_gerados = 0
     total_falhas_com_ocorrencia = 0
@@ -173,7 +200,10 @@ def simular_em_lote() -> None:
         cenario_sorteado = random.choice(pesos_cenarios)
         contagem_cenarios[cenario_sorteado] += 1
 
-        print(f"  Ciclo {i}/{qtd} -> Cenário: {cenario_sorteado:<8} ... ", end="", flush=True)
+        formatacao.console.print(
+            f"  Ciclo [bold yellow]{i:>2}/{qtd}[/] -> Cenário: [cyan]{cenario_sorteado:<9}[/] ... ",
+            end="",
+        )
         ok, res, _ = api_client.simular(cruzamento_id, cenario_sorteado)
 
         if ok and isinstance(res, dict):
@@ -182,24 +212,25 @@ def simular_em_lote() -> None:
             tem_oco = any(ev.get("ocorrencia_criada") for ev in evs)
             if tem_oco:
                 total_falhas_com_ocorrencia += 1
-                print("OK (Ocorrência criada)")
+                formatacao.console.print("[bold red]OK (Ocorrência criada)[/]")
             else:
-                print("OK")
+                formatacao.console.print("[bold green]OK[/]")
         else:
-            print(f"FALHA ({res})")
+            formatacao.console.print(f"[bold red]FALHA ({res})[/]")
 
     # Resumo da simulação em lote
     tabela_resumo = formatacao.Table(show_header=False, box=None)
-    tabela_resumo.add_column("Métrica", style="bold yellow", width=26)
+    tabela_resumo.add_column("Métrica", style="bold yellow", width=28)
     tabela_resumo.add_column("Valor", style="white")
     tabela_resumo.add_row("Cruzamento Alvo", str(cruzamento_id))
-    tabela_resumo.add_row("Total de Ciclos", str(qtd))
-    tabela_resumo.add_row("Travessias Normais", f"[green]{contagem_cenarios['normal']}[/]")
-    tabela_resumo.add_row("Extensões de Tempo", f"[cyan]{contagem_cenarios['extensao']}[/]")
-    tabela_resumo.add_row("Falhas Operacionais", f"[red]{contagem_cenarios['falha']}[/]")
-    tabela_resumo.add_row("Total de Eventos API", str(total_eventos_gerados))
-    tabela_resumo.add_row("Ocorrências Altas Geradas", str(total_falhas_com_ocorrencia))
+    tabela_resumo.add_row("Total de Ciclos", f"[bold white]{qtd}[/]")
+    tabela_resumo.add_row("Travessias Normais", f"[bold green]{contagem_cenarios['normal']}[/]")
+    tabela_resumo.add_row("Extensões de Tempo", f"[bold yellow]{contagem_cenarios['extensao']}[/]")
+    tabela_resumo.add_row("Falhas Operacionais", f"[bold red]{contagem_cenarios['falha']}[/]")
+    tabela_resumo.add_row("Total de Eventos API", f"[bold cyan]{total_eventos_gerados}[/]")
+    tabela_resumo.add_row("Ocorrências Altas Geradas", f"[bold magenta]{total_falhas_com_ocorrencia}[/]")
 
+    formatacao.console.print()
     formatacao.console.print(
         formatacao.Panel(
             tabela_resumo,
@@ -258,3 +289,4 @@ def menu_simulacoes() -> None:
             case _:
                 formatacao.console.print("[bold red]Opção inválida. Tente novamente.[/]")
                 formatacao.pausar("Pressione Enter para continuar...")
+

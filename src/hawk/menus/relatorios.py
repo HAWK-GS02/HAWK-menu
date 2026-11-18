@@ -80,7 +80,7 @@ def oferecer_exportacao(nome_base: str, dados_json: Any, texto_formatado: str) -
 
 
 def relatorio_resumo_geral() -> None:
-    """Gera e exibe o relatório de resumo geral do sistema."""
+    """Gera e exibe o relatório de resumo geral do sistema com painel e tabela Rich."""
     formatacao.imprimir_subtitulo("Relatório: Resumo Geral do Sistema")
 
     if sessao.esta_offline():
@@ -102,6 +102,26 @@ def relatorio_resumo_geral() -> None:
     total_fal = dados.get("total_falhas", 0)
     total_oco = dados.get("total_ocorrencias", 0)
 
+    # Exibição rica no terminal
+    tabela_res = formatacao.Table(show_header=False, box=None)
+    tabela_res.add_column("Indicador do Sistema", style="bold yellow", width=36)
+    tabela_res.add_column("Total", style="bold white", justify="right")
+    tabela_res.add_row("Total de Travessias Registradas", f"[bold green]{total_trav}[/]")
+    tabela_res.add_row("Total de Extensões de Tempo", f"[bold yellow]{total_ext}[/]")
+    tabela_res.add_row("Total de Falhas Detectadas", f"[bold red]{total_fal}[/]")
+    tabela_res.add_row("Total de Ocorrências Abertas", f"[bold magenta]{total_oco}[/]")
+
+    formatacao.console.print()
+    formatacao.console.print(
+        formatacao.Panel(
+            tabela_res,
+            title="[bold cyan]HAWK CROSS — RESUMO GERAL DO SISTEMA[/]",
+            subtitle=f"[dim]Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}[/]",
+            border_style="cyan",
+        )
+    )
+
+    # Monta texto ASCII para arquivo .txt exportado
     linhas_txt = [
         "============================================================",
         "             HAWK CROSS - RELATÓRIO DE RESUMO GERAL          ",
@@ -115,7 +135,6 @@ def relatorio_resumo_geral() -> None:
         "============================================================",
     ]
     texto_formatado = "\n".join(linhas_txt)
-    print("\n" + texto_formatado)
 
     persistencia.registrar_acao("GERAR_RELATORIO_RESUMO", dados, sucesso=True)
     oferecer_exportacao("resumo_geral", dados, texto_formatado)
@@ -148,6 +167,47 @@ def relatorio_medias_tempos() -> None:
 
     comparacao = comparar_taxa_extensao(pct_api, eventos)
 
+    # Exibição rica no terminal
+    tabela_t = formatacao.Table(show_header=False, box=None)
+    tabela_t.add_column("Métrica Operacional", style="bold yellow", width=38)
+    tabela_t.add_column("Valor", style="bold white", justify="right")
+    tabela_t.add_row("Tempo Médio de Espera dos Pedestres", f"[bold green]{espera:.2f} s[/]")
+    tabela_t.add_row("Tempo Médio de Travessia", f"[bold green]{travessia:.2f} s[/]")
+    tabela_t.add_row("Percentual de Extensões (API)", f"[bold yellow]{pct_api:.2f}%[/]")
+
+    tabela_val = formatacao.Table(show_header=False, box=None)
+    tabela_val.add_column("Métrica de Validação", style="bold cyan", width=38)
+    tabela_val.add_column("Valor", style="white", justify="right")
+    tabela_val.add_row("Travessias na Amostra Local", str(comparacao["total_travessias_amostra"]))
+    tabela_val.add_row("Extensões na Amostra Local", str(comparacao["extensoes_amostra"]))
+    tabela_val.add_row("Taxa Calculada Localmente", f"[bold yellow]{comparacao['percentual_local']:.2f}%[/]")
+    tabela_val.add_row("Diferença Absoluta", f"[bold]{comparacao['divergencia']:.2f}%[/]")
+
+    formatacao.console.print()
+    formatacao.console.print(
+        formatacao.Panel(
+            tabela_t,
+            title="[bold cyan]MÉDIAS DE TEMPOS OPERACIONAIS (API)[/]",
+            border_style="cyan",
+        )
+    )
+    formatacao.console.print(
+        formatacao.Panel(
+            tabela_val,
+            title="[bold cyan]VALIDAÇÃO ESTATÍSTICA LOCAL (Amostra de Eventos)[/]",
+            border_style="cyan",
+        )
+    )
+
+    if comparacao["divergencia_relevante"]:
+        formatacao.imprimir_aviso(
+            "Divergência identificada: A taxa da API considera todo o histórico; "
+            "a taxa local baseia-se na amostra recente de eventos consultados."
+        )
+    else:
+        formatacao.imprimir_sucesso("Consistência estatística confirmada entre API e dados locais.")
+
+    # Monta texto ASCII para arquivo .txt exportado
     linhas_txt = [
         "============================================================",
         "           HAWK CROSS - MÉDIAS DE TEMPOS OPERACIONAIS       ",
@@ -172,7 +232,6 @@ def relatorio_medias_tempos() -> None:
     linhas_txt.append("============================================================")
 
     texto_formatado = "\n".join(linhas_txt)
-    print("\n" + texto_formatado)
 
     payload = {"tempos_api": dados_tempos, "comparacao_local": comparacao}
     persistencia.registrar_acao("GERAR_RELATORIO_TEMPOS", payload, sucesso=True)
@@ -187,7 +246,6 @@ def relatorio_por_cruzamento() -> None:
         salvo_em = persistencia.ler_cache("salvo_em") or "data desconhecida"
         formatacao.imprimir_aviso(f"Modo offline. Exibindo dados do cache local salvos em: {salvo_em}")
         cruzamentos_cache = persistencia.ler_cache("cruzamentos") or []
-        # Constrói visão aproximada do cache caso offline
         dados_lista = [
             {
                 "cruzamento_id": c.get("id"),
@@ -212,18 +270,28 @@ def relatorio_por_cruzamento() -> None:
         formatacao.imprimir_aviso("Nenhum dado por cruzamento disponível no momento.")
         return
 
-    print("Opções de ordenação da tabela:")
-    print("  [1] Por total de travessias (decrescente)")
-    print("  [2] Por total de extensões (decrescente)")
-    print("  [3] Por total de falhas (decrescente)")
-    print("  [4] Por percentual de extensão (decrescente)")
-    print("  [5] Por nome do cruzamento (alfabético A-Z)")
+    tabela_ord = formatacao.Table(show_header=False, box=None)
+    tabela_ord.add_column("Opção", style="bold green", width=6)
+    tabela_ord.add_column("Critério de Ordenação", style="white")
+    tabela_ord.add_row("1", "Por total de travessias (decrescente)")
+    tabela_ord.add_row("2", "Por total de extensões (decrescente)")
+    tabela_ord.add_row("3", "Por total de falhas (decrescente)")
+    tabela_ord.add_row("4", "Por percentual de extensão (decrescente)")
+    tabela_ord.add_row("5", "Por nome do cruzamento (alfabético A-Z)")
+
+    formatacao.console.print(
+        formatacao.Panel(
+            tabela_ord,
+            title="[bold cyan]Opções de Ordenação da Tabela[/]",
+            border_style="cyan",
+        )
+    )
 
     chave_ord: str = "total_travessias"
     inverter: bool = True
 
     try:
-        entrada_ord = input("Escolha a ordenação [1 a 5, padrão 1]: ").strip()
+        entrada_ord = input("\nEscolha a ordenação [1 a 5, padrão 1]: ").strip()
         op_ord = int(entrada_ord) if entrada_ord else 1
         match op_ord:
             case 1:
@@ -242,9 +310,9 @@ def relatorio_por_cruzamento() -> None:
                 chave_ord = "nome"
                 inverter = False
             case _:
-                print("Opção inválida. Usando ordenação por total de travessias.")
+                formatacao.imprimir_aviso("Opção inválida. Usando ordenação por total de travessias.")
     except ValueError:
-        print("Entrada inválida. Usando ordenação padrão.")
+        formatacao.imprimir_aviso("Entrada inválida. Usando ordenação padrão.")
 
     dados_ordenados = sorted(
         dados_lista,
@@ -252,7 +320,7 @@ def relatorio_por_cruzamento() -> None:
         reverse=inverter,
     )
 
-    print()
+    formatacao.console.print()
     formatacao.formatar_relatorio_cruzamentos(dados_ordenados)
 
     # Monta texto para exportação
@@ -281,7 +349,7 @@ def relatorio_por_cruzamento() -> None:
 
 
 def relatorio_local_ocorrencias() -> None:
-    """Gera análise estatística aprofundada de ocorrências calculada em Python."""
+    """Gera análise estatística aprofundada de ocorrências calculada em Python com tabelas Rich."""
     formatacao.imprimir_subtitulo("Relatório Local: Análise de Ocorrências")
 
     if sessao.esta_offline():
@@ -301,6 +369,59 @@ def relatorio_local_ocorrencias() -> None:
     analise = calcular_relatorio_ocorrencias(ocorrencias)
     tot = analise["total"]
 
+    # Tabelas Rich para o terminal
+    tabela_prio = formatacao.Table(
+        title="[bold]Distribuição por Prioridade[/]",
+        box=formatacao.box.SIMPLE,
+        show_header=True,
+        header_style="bold magenta",
+    )
+    tabela_prio.add_column("Prioridade", style="white", width=14)
+    tabela_prio.add_column("Quantidade", style="bold yellow", justify="right", width=12)
+    tabela_prio.add_column("Percentual", style="cyan", justify="right", width=12)
+
+    for p_nome, qtd in analise["por_prioridade"].items():
+        pct = (qtd / tot * 100.0) if tot > 0 else 0.0
+        cor = "red" if p_nome == "alta" else ("yellow" if p_nome == "media" else "green")
+        tabela_prio.add_row(f"[{cor}]{p_nome.upper()}[/]", str(qtd), f"{pct:.1f}%")
+
+    tabela_sit = formatacao.Table(
+        title="[bold]Distribuição por Situação Operacional[/]",
+        box=formatacao.box.SIMPLE,
+        show_header=True,
+        header_style="bold magenta",
+    )
+    tabela_sit.add_column("Situação", style="white", width=18)
+    tabela_sit.add_column("Quantidade", style="bold yellow", justify="right", width=12)
+    tabela_sit.add_column("Percentual", style="cyan", justify="right", width=12)
+
+    for s_nome, qtd in analise["por_situacao"].items():
+        pct = (qtd / tot * 100.0) if tot > 0 else 0.0
+        cor = "red" if s_nome == "aberta" else ("yellow" if s_nome == "em_andamento" else "green")
+        tabela_sit.add_row(f"[{cor}]{s_nome.upper()}[/]", str(qtd), f"{pct:.1f}%")
+
+    t_med = analise["tempo_medio_resolucao_minutos"]
+    t_med_str = f"[bold green]{t_med:.1f} minutos[/]" if t_med is not None else "[dim]Sem dados (nenhuma resolvida)[/]"
+
+    info_painel = (
+        f"[bold cyan]Total de Ocorrências Registradas :[/] [bold white]{tot}[/]\n"
+        f"[bold cyan]Tempo Médio de Resolução          :[/] {t_med_str}\n"
+        f"[bold cyan]Amostra com Intervalo Medido     :[/] [bold white]{analise['total_resolvidas_com_tempo']}[/]"
+    )
+
+    formatacao.console.print()
+    formatacao.console.print(
+        formatacao.Panel(
+            info_painel,
+            title="[bold cyan]ANÁLISE ESTATÍSTICA DE OCORRÊNCIAS (PYTHON LOCAL)[/]",
+            subtitle=f"[dim]Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}[/]",
+            border_style="cyan",
+        )
+    )
+    formatacao.console.print(tabela_prio)
+    formatacao.console.print(tabela_sit)
+
+    # Monta texto ASCII para arquivo .txt exportado
     linhas_txt = [
         "============================================================",
         "        HAWK CROSS - ANÁLISE ESTATÍSTICA DE OCORRÊNCIAS     ",
@@ -322,7 +443,6 @@ def relatorio_local_ocorrencias() -> None:
         linhas_txt.append(f"    * {s_nome.title():<14}: {qtd:>3} ocorrência(s) ({pct:>5.1f}%)")
 
     linhas_txt.append("------------------------------------------------------------")
-    t_med = analise["tempo_medio_resolucao_minutos"]
     if t_med is not None:
         linhas_txt.append(f"  Tempo Médio de Resolução (Aberta -> Resolvida): {t_med:.1f} minutos")
         linhas_txt.append(f"  Amostra de ocorrências resolvidas com tempo: {analise['total_resolvidas_com_tempo']}")
@@ -331,16 +451,15 @@ def relatorio_local_ocorrencias() -> None:
     linhas_txt.append("============================================================")
 
     texto_formatado = "\n".join(linhas_txt)
-    print("\n" + texto_formatado)
 
     persistencia.registrar_acao("GERAR_RELATORIO_LOCAL_OCORRENCIAS", analise, sucesso=True)
     oferecer_exportacao("analise_ocorrencias", analise, texto_formatado)
 
 
 def relatorio_consolidado() -> None:
-    """Consolida Resumo Geral, Tempos, Cruzamentos e Ocorrências em um documento único."""
+    """Consolida Resumo Geral, Tempos, Cruzamentos e Ocorrências em um documento único formatado."""
     formatacao.imprimir_subtitulo("Emissão do Relatório Consolidado do Sistema")
-    print("Coletando e consolidando métricas de todos os subsistemas...")
+    formatacao.console.print("[dim cyan]Coletando e consolidando métricas de todos os subsistemas...[/]\n")
 
     # 1. Resumo
     if not sessao.esta_offline():
@@ -381,7 +500,75 @@ def relatorio_consolidado() -> None:
     pct_api = float(dados_tempos.get("percentual_extensoes", 0.0))
     comparacao_ext = comparar_taxa_extensao(pct_api, eventos)
 
-    # Montagem do relatório consolidado
+    # Exibição rica formatada no console
+    formatacao.console.rule("[bold cyan]1. RESUMO GERAL DO SISTEMA[/]")
+    tabela_res = formatacao.Table(show_header=False, box=None)
+    tabela_res.add_column("Métrica", style="bold yellow", width=34)
+    tabela_res.add_column("Valor", style="bold white", justify="right")
+    tabela_res.add_row("Total de Travessias Registradas", f"[bold green]{dados_resumo.get('total_travessias', 0)}[/]")
+    tabela_res.add_row("Total de Extensões de Tempo", f"[bold yellow]{dados_resumo.get('total_extensoes', 0)}[/]")
+    tabela_res.add_row("Total de Falhas Operacionais", f"[bold red]{dados_resumo.get('total_falhas', 0)}[/]")
+    tabela_res.add_row("Total de Ocorrências no Sistema", f"[bold magenta]{dados_resumo.get('total_ocorrencias', 0)}[/]")
+    formatacao.console.print(tabela_res)
+
+    formatacao.console.rule("[bold cyan]2. INDICADORES DE TEMPO E DESEMPENHO[/]")
+    tabela_t = formatacao.Table(show_header=False, box=None)
+    tabela_t.add_column("Indicador", style="bold yellow", width=38)
+    tabela_t.add_column("Valor", style="white", justify="right")
+    tabela_t.add_row(
+        "Tempo Médio de Espera dos Pedestres",
+        f"[bold green]{float(dados_tempos.get('tempo_medio_espera_s', 0)):.2f} s[/]",
+    )
+    tabela_t.add_row(
+        "Tempo Médio de Travessia",
+        f"[bold green]{float(dados_tempos.get('tempo_medio_travessia_s', 0)):.2f} s[/]",
+    )
+    tabela_t.add_row("Taxa Geral de Extensão (API)", f"[bold yellow]{pct_api:.2f}%[/]")
+    tabela_t.add_row(
+        "Taxa Validada Localmente (Amostra)",
+        f"[cyan]{comparacao_ext['percentual_local']:.2f}%[/] (Amostra: {comparacao_ext['total_travessias_amostra']} travessias)",
+    )
+    formatacao.console.print(tabela_t)
+
+    formatacao.console.rule("[bold cyan]3. ANÁLISE DE OCORRÊNCIAS[/]")
+    t_res = analise_oco["tempo_medio_resolucao_minutos"]
+    t_res_str = f"[bold green]{t_res:.1f} minutos[/]" if t_res is not None else "[dim]Sem dados[/]"
+    formatacao.console.print(
+        f"[bold cyan]Total de Ocorrências:[/] [bold white]{analise_oco['total']}[/] | [bold cyan]Tempo Médio de Resolução:[/] {t_res_str}\n"
+    )
+
+    tabela_oco_res = formatacao.Table(
+        show_header=True,
+        header_style="bold magenta",
+        box=formatacao.box.SIMPLE,
+    )
+    tabela_oco_res.add_column("Categoria", style="bold yellow", width=16)
+    tabela_oco_res.add_column("Detalhe", style="white", width=20)
+    tabela_oco_res.add_column("Quantidade", style="bold green", justify="right", width=12)
+
+    for p_k, p_v in analise_oco["por_prioridade"].items():
+        tabela_oco_res.add_row("Prioridade", p_k.title(), str(p_v))
+    for s_k, s_v in analise_oco["por_situacao"].items():
+        tabela_oco_res.add_row("Situação", s_k.title(), str(s_v))
+    formatacao.console.print(tabela_oco_res)
+
+    formatacao.console.rule("[bold cyan]4. MÉTRICAS INDIVIDUAIS POR CRUZAMENTO[/]")
+    if dados_cruz:
+        formatacao.formatar_relatorio_cruzamentos(dados_cruz)
+    else:
+        formatacao.imprimir_aviso("Sem dados detalhados de cruzamentos disponíveis.")
+
+    formatacao.console.print()
+    formatacao.console.print(
+        formatacao.Panel(
+            "[yellow]Este relatório reflete dados de simulação e proposta acadêmica.\n"
+            "Não aplicável para controle semafórico real nem segurança viária certificada.[/]",
+            title="[bold yellow]AVISO LEGAL[/]",
+            border_style="yellow",
+        )
+    )
+
+    # Montagem do relatório texto para exportação
     data_geracao = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     linhas = [
         "#######################################################################",
@@ -418,8 +605,8 @@ def relatorio_consolidado() -> None:
     for s_k, s_v in analise_oco["por_situacao"].items():
         linhas.append(f"    - {s_k.title():<14}: {s_v}")
 
-    t_res = analise_oco["tempo_medio_resolucao_minutos"]
-    linhas.append(f"  Tempo Médio de Resolução : {f'{t_res:.1f} minutos' if t_res is not None else 'Sem dados'}")
+    t_res_raw = analise_oco["tempo_medio_resolucao_minutos"]
+    linhas.append(f"  Tempo Médio de Resolução : {f'{t_res_raw:.1f} minutos' if t_res_raw is not None else 'Sem dados'}")
 
     linhas.append("")
     linhas.append("=======================================================================")
@@ -444,7 +631,6 @@ def relatorio_consolidado() -> None:
     linhas.append("#######################################################################")
 
     texto_formatado = "\n".join(linhas)
-    print("\n" + texto_formatado)
 
     consolidado_payload = {
         "gerado_em": datetime.now().isoformat(),
@@ -506,3 +692,4 @@ def menu_relatorios() -> None:
             case _:
                 formatacao.console.print("[bold red]Opção inválida. Tente novamente.[/]")
                 formatacao.pausar("Pressione Enter para continuar...")
+
