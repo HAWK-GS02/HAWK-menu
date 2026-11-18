@@ -460,35 +460,49 @@ def relatorio_consolidado() -> None:
 
 
 def menu_relatorios() -> None:
-    """Menu interativo para emissão e exportação de relatórios com match/case."""
+    """Menu interativo para emissão e exportação de relatórios com match/case e formatação Rich."""
+    opcoes = [
+        ("1", "Resumo Geral do Sistema (GET /relatorios/resumo)"),
+        ("2", "Médias de Tempos Operacionais (GET /relatorios/tempos)"),
+        ("3", "Métricas por Cruzamento (com ordenação personalizada)"),
+        ("4", "Análise Estatística Local de Ocorrências (Python)"),
+        ("5", "Relatório Consolidado Completo (com exportação .txt e .json)"),
+        ("0", "Voltar ao menu principal"),
+    ]
     while True:
-        formatacao.imprimir_titulo("Relatórios Operacionais - HAWK Cross")
-        print("  [1] Resumo Geral do Sistema (GET /relatorios/resumo)")
-        print("  [2] Médias de Tempos Operacionais (GET /relatorios/tempos)")
-        print("  [3] Métricas por Cruzamento (com ordenação personalizada)")
-        print("  [4] Análise Estatística Local de Ocorrências (Python)")
-        print("  [5] Relatório Consolidado Completo (com exportação .txt e .json)")
-        print("  [0] Voltar ao menu principal\n")
+        formatacao.limpar_tela()
+        formatacao.titulo_terminal(
+            "RELATÓRIOS DO SISTEMA",
+            "Métricas Operacionais, Estatísticas e Exportação",
+            "bold cyan",
+        )
+        formatacao.exibir_menu_painel("MENU DE RELATÓRIOS", opcoes, border_style="cyan")
 
-        try:
-            entrada = input("Opção desejada: ").strip()
-            opcao = int(entrada)
-        except ValueError:
-            print("Entrada inválida. Digite um número de 0 a 5.")
-            continue
+        opcao = input("\nEscolha uma opção: ").strip()
 
         match opcao:
-            case 1:
+            case "1":
+                formatacao.limpar_tela()
                 relatorio_resumo_geral()
-            case 2:
+                formatacao.pausar()
+            case "2":
+                formatacao.limpar_tela()
                 relatorio_medias_tempos()
-            case 3:
+                formatacao.pausar()
+            case "3":
+                formatacao.limpar_tela()
                 relatorio_por_cruzamento()
-            case 4:
+                formatacao.pausar()
+            case "4":
+                formatacao.limpar_tela()
                 relatorio_local_ocorrencias()
-            case 5:
+                formatacao.pausar()
+            case "5":
+                formatacao.limpar_tela()
                 relatorio_consolidado()
-            case 0:
+                formatacao.pausar()
+            case "0":
                 break
             case _:
-                print("Opção inválida. Escolha entre 0 e 5.")
+                formatacao.console.print("[bold red]Opção inválida. Tente novamente.[/]")
+                formatacao.pausar("Pressione Enter para continuar...")

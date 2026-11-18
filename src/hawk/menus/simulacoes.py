@@ -52,15 +52,18 @@ def exibir_sequencia_eventos(eventos: list[dict[str, Any]]) -> None:
             case _:
                 print(f"  * Evento: {tipo}")
 
-    # Exibe ocorrência de segurança gerada automaticamente no servidor
+    # Exibe ocorrência de segurança gerada automaticamente no servidor com Rich Panel
     if ocorrencia_auto:
-        print("\n" + "!" * 70)
-        print("  [ALERTA DE SEGURANÇA] OCORRÊNCIA AUTOMÁTICA GERADA PELO SERVIDOR")
-        print(f"  ID Ocorrência : {ocorrencia_auto.get('id')}")
-        print(f"  Prioridade    : {ocorrencia_auto.get('prioridade', 'alta').upper()}")
-        print(f"  Situação      : {ocorrencia_auto.get('situacao', 'aberta').upper()}")
-        print("  Regra         : Cenário de falha gera ocorrência de prioridade alta.")
-        print("!" * 70 + "\n")
+        formatacao.console.print(
+            formatacao.Panel(
+                f"[bold red]ID Ocorrência :[/] {ocorrencia_auto.get('id')}\n"
+                f"[bold red]Prioridade    :[/] {ocorrencia_auto.get('prioridade', 'alta').upper()}\n"
+                f"[bold red]Situação      :[/] {ocorrencia_auto.get('situacao', 'aberta').upper()}\n"
+                f"[bold white]Regra         :[/] Cenário de falha gera ocorrência de prioridade alta no servidor.",
+                title="[bold red]ALERTA DE SEGURANÇA — OCORRÊNCIA AUTOMÁTICA[/]",
+                border_style="red",
+            )
+        )
 
 
 def simular_cenario_individual() -> None:
@@ -186,17 +189,24 @@ def simular_em_lote() -> None:
             print(f"FALHA ({res})")
 
     # Resumo da simulação em lote
-    print("\n" + "=" * 60)
-    print("  RESUMO DA SIMULAÇÃO EM LOTE [DADOS SIMULADOS]")
-    print("=" * 60)
-    print(f"  Cruzamento Alvo        : {cruzamento_id}")
-    print(f"  Total de Ciclos        : {qtd}")
-    print(f"  - Travessias Normais   : {contagem_cenarios['normal']}")
-    print(f"  - Extensões de Tempo   : {contagem_cenarios['extensao']}")
-    print(f"  - Falhas Operacionais  : {contagem_cenarios['falha']}")
-    print(f"  Total de Eventos API   : {total_eventos_gerados}")
-    print(f"  Ocorrências Altas      : {total_falhas_com_ocorrencia}")
-    print("=" * 60 + "\n")
+    tabela_resumo = formatacao.Table(show_header=False, box=None)
+    tabela_resumo.add_column("Métrica", style="bold yellow", width=26)
+    tabela_resumo.add_column("Valor", style="white")
+    tabela_resumo.add_row("Cruzamento Alvo", str(cruzamento_id))
+    tabela_resumo.add_row("Total de Ciclos", str(qtd))
+    tabela_resumo.add_row("Travessias Normais", f"[green]{contagem_cenarios['normal']}[/]")
+    tabela_resumo.add_row("Extensões de Tempo", f"[cyan]{contagem_cenarios['extensao']}[/]")
+    tabela_resumo.add_row("Falhas Operacionais", f"[red]{contagem_cenarios['falha']}[/]")
+    tabela_resumo.add_row("Total de Eventos API", str(total_eventos_gerados))
+    tabela_resumo.add_row("Ocorrências Altas Geradas", str(total_falhas_com_ocorrencia))
+
+    formatacao.console.print(
+        formatacao.Panel(
+            tabela_resumo,
+            title="[bold cyan]RESUMO DA SIMULAÇÃO EM LOTE [DADOS SIMULADOS][/]",
+            border_style="cyan",
+        )
+    )
 
     persistencia.registrar_acao(
         "SIMULACAO_LOTE",
@@ -212,27 +222,39 @@ def simular_em_lote() -> None:
 
 
 def menu_simulacoes() -> None:
-    """Menu principal do módulo de simulações com match/case."""
+    """Menu principal do módulo de simulações com match/case e formatação Rich."""
+    opcoes = [
+        ("1", "Executar Simulação Individual (Normal / Extensão / Falha)"),
+        ("2", "Executar Simulação em Lote (Geração de massa de dados)"),
+        ("0", "Voltar ao menu principal"),
+    ]
     while True:
-        formatacao.imprimir_titulo("Simulações de Travessia - HAWK Cross")
-        print("[AVISO LEGAL] Todos os dados gerados são acadêmicos e simulados.")
-        print("  [1] Executar Simulação Individual (Normal / Extensão / Falha)")
-        print("  [2] Executar Simulação em Lote (Geração de massa de dados)")
-        print("  [0] Voltar ao menu principal\n")
+        formatacao.limpar_tela()
+        formatacao.titulo_terminal(
+            "SIMULAÇÕES DE TRAVESSIA",
+            "Massa de Dados e Teste de Proteção Adaptativa (Dados Simulados)",
+            "bold cyan",
+        )
+        formatacao.exibir_menu_painel(
+            "MENU DE SIMULAÇÕES",
+            opcoes,
+            border_style="cyan",
+            rodape_info="[AVISO] Dados acadêmicos simulados com origem 'simulacao_console'",
+        )
 
-        try:
-            entrada = input("Opção desejada: ").strip()
-            opcao = int(entrada)
-        except ValueError:
-            print("Entrada inválida. Digite um número de 0 a 2.")
-            continue
+        opcao = input("\nEscolha uma opção: ").strip()
 
         match opcao:
-            case 1:
+            case "1":
+                formatacao.limpar_tela()
                 simular_cenario_individual()
-            case 2:
+                formatacao.pausar()
+            case "2":
+                formatacao.limpar_tela()
                 simular_em_lote()
-            case 0:
+                formatacao.pausar()
+            case "0":
                 break
             case _:
-                print("Opção inválida. Escolha entre 0 e 2.")
+                formatacao.console.print("[bold red]Opção inválida. Tente novamente.[/]")
+                formatacao.pausar("Pressione Enter para continuar...")

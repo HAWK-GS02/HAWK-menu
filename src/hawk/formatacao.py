@@ -1,100 +1,129 @@
-"""Utilitários de formatação visual para console (tabelas, títulos e mensagens)."""
+"""Utilitários de formatação visual para console utilizando a biblioteca Rich.
 
+Baseado no padrão estético e estrutural do exemplo de referência:
+- Uso de Console, Panel, Table e Text da biblioteca Rich
+- Títulos em Panels estilizados (titulo_terminal)
+- Divisores de seção com console.rule()
+- Menus em tabelas sem cabeçalho envolvidas em Panels com border_style
+- Tabelas com colunas coloridas (bold yellow, bold green, white, etc.)
+- Mensagens de sucesso, erro e alerta com formatação rica
+"""
+
+import os
 from typing import Any, Sequence
 
+from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
-def imprimir_titulo(titulo: str) -> None:
-    """Exibe um título de seção com linha dupla."""
-    linha = "=" * max(60, len(titulo) + 4)
-    print(f"\n{linha}")
-    print(f"  {titulo.upper()}")
-    print(f"{linha}\n")
+console = Console()
+
+
+def limpar_tela() -> None:
+    """Limpa a tela do terminal conforme o sistema operacional (cls no Windows, clear no Unix)."""
+    os.system("cls" if os.name == "nt" else "clear")
+
+
+def titulo_terminal(titulo: str, subtitulo: str | None = None, estilo: str = "bold cyan") -> None:
+    """Exibe um painel de cabeçalho no estilo titulo_terminal do exemplo."""
+    conteudo = titulo if not subtitulo else f"{titulo}\n{subtitulo}"
+    console.print(Panel(conteudo, style=estilo, expand=False))
+
+
+def imprimir_titulo(titulo: str, subtitulo: str | None = None) -> None:
+    """Exibe título estilizado em painel ciano."""
+    titulo_terminal(titulo, subtitulo, estilo="bold cyan")
 
 
 def imprimir_subtitulo(subtitulo: str) -> None:
-    """Exibe um subtítulo de seção com linha simples."""
-    linha = "-" * max(50, len(subtitulo) + 4)
-    print(f"\n{subtitulo}")
-    print(linha)
+    """Exibe divisor de seção com console.rule."""
+    console.rule(f"[bold cyan]{subtitulo}[/]")
 
 
 def imprimir_sucesso(mensagem: str) -> None:
-    """Exibe mensagem de sucesso."""
-    print(f"\n[SUCESSO] {mensagem}\n")
+    """Exibe mensagem de sucesso com destaque verde."""
+    console.print(f"[bold green]✔ [SUCESSO][/] {mensagem}")
 
 
 def imprimir_erro(mensagem: str) -> None:
-    """Exibe mensagem de erro."""
-    print(f"\n[ERRO] {mensagem}\n")
+    """Exibe mensagem de erro com destaque vermelho."""
+    console.print(f"[bold red]✖ [ERRO][/] {mensagem}")
 
 
 def imprimir_aviso(mensagem: str) -> None:
-    """Exibe mensagem de aviso/alerta."""
-    print(f"\n[AVISO] {mensagem}\n")
+    """Exibe mensagem de aviso com destaque amarelo."""
+    console.print(f"[bold yellow]⚠ [AVISO][/] {mensagem}")
+
+
+def pausar(mensagem: str = "Pressione Enter para retornar ao menu...") -> None:
+    """Solicita confirmação do usuário antes de limpar a tela ou prosseguir."""
+    input(f"\n{mensagem}")
+
+
+def exibir_menu_painel(
+    titulo: str,
+    opcoes: Sequence[tuple[str, str]],
+    border_style: str = "cyan",
+    rodape_info: str | None = None,
+) -> None:
+    """Renderiza menu com Rich Table embutida em Panel, seguindo exatamente o exemplo de referência."""
+    tabela = Table(title=f"[bold]{titulo}[/]", box=None, show_header=False)
+    tabela.add_column("Opção", style="bold green", width=8)
+    tabela.add_column("Descrição", style="white")
+
+    for num, desc in opcoes:
+        tabela.add_row(str(num), desc)
+
+    if rodape_info:
+        console.print(f"[yellow]{rodape_info}[/]")
+
+    console.print(Panel(tabela, border_style=border_style))
 
 
 def formatar_tabela(
     cabecalhos: Sequence[str],
     linhas: Sequence[Sequence[Any]],
     alinhamentos: Sequence[str] | None = None,
+    titulo: str | None = None,
 ) -> None:
-    """Imprime uma tabela alinhada no console puro.
-    
-    cabecalhos: lista/tupla com nomes das colunas.
-    linhas: lista de linhas, cada uma contendo valores para as colunas.
-    alinhamentos: '<' para esquerda, '>' para direita, '^' para centro.
-    """
+    """Imprime uma tabela rica e alinhada utilizando Rich Table."""
     if not cabecalhos:
         return
 
-    num_colunas = len(cabecalhos)
-    str_linhas = [[str(item if item is not None else "-") for item in linha] for linha in linhas]
+    tabela = Table(
+        title=f"[bold]{titulo}[/]" if titulo else None,
+        show_header=True,
+        header_style="bold magenta",
+        box=box.SIMPLE,
+    )
 
-    # Calcula largura máxima de cada coluna
-    larguras = [len(h) for h in cabecalhos]
-    for linha in str_linhas:
-        for idx in range(num_colunas):
-            if idx < len(linha):
-                larguras[idx] = max(larguras[idx], len(linha[idx]))
+    justify_map = {"<": "left", ">": "right", "^": "center"}
 
-    # Formata cabeçalho
-    pad_cabecalho = []
     for idx, h in enumerate(cabecalhos):
-        pad_cabecalho.append(f"{h:<{larguras[idx]}}")
-    linha_cabecalho = " | ".join(pad_cabecalho)
-    divisor = "-+-".join(["-" * w for w in larguras])
+        alin = alinhamentos[idx] if alinhamentos and idx < len(alinhamentos) else "<"
+        just = justify_map.get(alin, "left")
+        col_style = "bold yellow" if idx == 0 else "white"
+        tabela.add_column(h, justify=just, style=col_style)
 
-    print(linha_cabecalho)
-    print(divisor)
-
-    if not str_linhas:
-        print("  (Nenhum registro encontrado)")
-        print()
+    if not linhas:
+        console.print(tabela)
+        console.print("[dim]  (Nenhum registro encontrado)[/]\n")
         return
 
-    # Formata linhas de dados
-    for linha in str_linhas:
-        cols = []
-        for idx in range(num_colunas):
-            val = linha[idx] if idx < len(linha) else ""
-            alin = alinhamentos[idx] if alinhamentos and idx < len(alinhamentos) else "<"
-            if alin == ">":
-                cols.append(f"{val:>{larguras[idx]}}")
-            elif alin == "^":
-                cols.append(f"{val:^{larguras[idx]}}")
-            else:
-                cols.append(f"{val:<{larguras[idx]}}")
-        print(" | ".join(cols))
-    print()
+    for linha in linhas:
+        str_linha = [str(item if item is not None else "-") for item in linha]
+        tabela.add_row(*str_linha)
+
+    console.print(tabela)
 
 
 def formatar_cruzamentos(cruzamentos: Sequence[dict[str, Any]]) -> None:
-    """Exibe lista de cruzamentos em tabela formatada com índice."""
+    """Exibe lista de cruzamentos em tabela formatada com Rich Table."""
     cabecalhos = ["#", "ID", "Nome", "Bairro", "Largura (m)", "Status"]
     linhas = []
     for i, c in enumerate(cruzamentos, start=1):
         cid = str(c.get("id", ""))
-        # Exibe primeiros 8 caracteres do ID para economizar espaço
         cid_resumido = f"{cid[:8]}..." if len(cid) > 10 else cid
         linhas.append([
             i,
@@ -108,7 +137,7 @@ def formatar_cruzamentos(cruzamentos: Sequence[dict[str, Any]]) -> None:
 
 
 def formatar_ocorrencias(ocorrencias: Sequence[dict[str, Any]]) -> None:
-    """Exibe lista de ocorrências em tabela formatada com índice."""
+    """Exibe lista de ocorrências em tabela formatada com Rich Table."""
     cabecalhos = ["#", "ID", "Cruzamento", "Tipo", "Prioridade", "Situação", "Criado Em"]
     linhas = []
     for i, o in enumerate(ocorrencias, start=1):
@@ -129,7 +158,7 @@ def formatar_ocorrencias(ocorrencias: Sequence[dict[str, Any]]) -> None:
 
 
 def formatar_eventos(eventos: Sequence[dict[str, Any]]) -> None:
-    """Exibe lista de eventos em tabela formatada com índice."""
+    """Exibe lista de eventos em tabela formatada com Rich Table."""
     cabecalhos = ["#", "ID", "Cruzamento", "Tipo", "Estado", "Origem", "Espera (s)", "Trav. (s)", "Data/Hora"]
     linhas = []
     for i, e in enumerate(eventos, start=1):
@@ -194,10 +223,14 @@ def formatar_relatorio_cruzamentos(itens: Sequence[dict[str, Any]]) -> None:
 
 
 def exibir_detalhes(titulo: str, dados: dict[str, Any]) -> None:
-    """Exibe um registro detalhado em formato chave: valor alinhado."""
-    imprimir_subtitulo(titulo)
-    largura_chave = max((len(str(k)) for k in dados.keys()), default=15)
+    """Exibe um registro detalhado formatado com Rich Table."""
+    console.rule(f"[bold cyan]{titulo}[/]")
+    tabela = Table(show_header=False, box=None)
+    tabela.add_column("Campo", style="bold yellow", width=25)
+    tabela.add_column("Valor", style="white")
+
     for k, v in dados.items():
         rotulo = str(k).replace("_", " ").title()
-        print(f"  {rotulo:<{largura_chave + 2}}: {v}")
-    print()
+        tabela.add_row(rotulo, str(v))
+
+    console.print(Panel(tabela, border_style="cyan"))

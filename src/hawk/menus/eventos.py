@@ -433,35 +433,45 @@ def ver_historico_local_app() -> None:
 
 
 def menu_eventos() -> None:
-    """Menu interativo para gerenciamento e consulta de eventos e histórico com match/case."""
+    """Menu interativo para gerenciamento e consulta de eventos e histórico com match/case e formatação Rich."""
+    opcoes = [
+        ("1", "Registrar Evento Manual (POST /eventos)"),
+        ("2", "Consultar Histórico de Eventos da API (com filtros e contagens)"),
+        ("3", "Consultar Evento por ID"),
+        ("4", "Consultar Estado Semafórico Atual do Cruzamento"),
+        ("5", "Ver Histórico Local de Ações do Console (historico_local.json)"),
+        ("0", "Voltar ao menu principal"),
+    ]
     while True:
-        formatacao.imprimir_titulo("Eventos e Histórico - HAWK Cross")
-        print("  [1] Registrar Evento Manual (POST /eventos)")
-        print("  [2] Consultar Histórico de Eventos da API (com filtros e contagens)")
-        print("  [3] Consultar Evento por ID")
-        print("  [4] Consultar Estado Semafórico Atual do Cruzamento")
-        print("  [5] Ver Histórico Local de Ações do Console (historico_local.json)")
-        print("  [0] Voltar ao menu principal\n")
+        formatacao.limpar_tela()
+        formatacao.titulo_terminal("EVENTOS E HISTÓRICO", "Registro de Travessias e Estado Semafórico", "bold cyan")
+        formatacao.exibir_menu_painel("MENU DE EVENTOS", opcoes, border_style="cyan")
 
-        try:
-            entrada = input("Opção desejada: ").strip()
-            opcao = int(entrada)
-        except ValueError:
-            print("Entrada inválida. Digite um número de 0 a 5.")
-            continue
+        opcao = input("\nEscolha uma opção: ").strip()
 
         match opcao:
-            case 1:
+            case "1":
+                formatacao.limpar_tela()
                 registrar_evento_manual()
-            case 2:
+                formatacao.pausar()
+            case "2":
+                formatacao.limpar_tela()
                 consultar_historico_eventos()
-            case 3:
+                formatacao.pausar()
+            case "3":
+                formatacao.limpar_tela()
                 consultar_evento_por_id()
-            case 4:
+                formatacao.pausar()
+            case "4":
+                formatacao.limpar_tela()
                 consultar_estado_atual()
-            case 5:
+                formatacao.pausar()
+            case "5":
+                formatacao.limpar_tela()
                 ver_historico_local_app()
-            case 0:
+                formatacao.pausar()
+            case "0":
                 break
             case _:
-                print("Opção inválida. Escolha entre 0 e 5.")
+                formatacao.console.print("[bold red]Opção inválida. Tente novamente.[/]")
+                formatacao.pausar("Pressione Enter para continuar...")

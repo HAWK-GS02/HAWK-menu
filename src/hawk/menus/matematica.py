@@ -121,23 +121,31 @@ def calcular_tempo_minimo_comparativo() -> None:
         if ok and isinstance(res_api, dict):
             t_api = float(res_api.get("tempo_minimo_s", 0.0))
 
-    print("\n" + "=" * 65)
-    print("  RESULTADOS DO CÁLCULO DE TEMPO MÍNIMO REGULAMENTAR")
-    print("=" * 65)
-    print(f"  Largura da Via (L)           : {L:.2f} m")
-    print(f"  Velocidade de Ref. (v_ref)   : {modelo.VELOCIDADE_REF:.2f} m/s (pedestre vulnerável)")
-    print(f"  Margem de Segurança (m)      : {modelo.MARGEM:.2f} s")
-    print(f"  -> Tempo Mínimo (Local)      : {t_local:.2f} s")
+    # Exibe resultados em painel estilizado com Rich
+    tabela_min = formatacao.Table(show_header=False, box=None)
+    tabela_min.add_column("Parâmetro", style="bold yellow", width=30)
+    tabela_min.add_column("Valor", style="white")
+    tabela_min.add_row("Largura da Via (L)", f"{L:.2f} m")
+    tabela_min.add_row("Velocidade de Ref. (v_ref)", f"{modelo.VELOCIDADE_REF:.2f} m/s (pedestre vulnerável)")
+    tabela_min.add_row("Margem de Segurança (m)", f"{modelo.MARGEM:.2f} s")
+    tabela_min.add_row("Tempo Mínimo (Local)", f"[bold green]{t_local:.2f} s[/]")
     if t_api is not None:
-        print(f"  -> Tempo Mínimo (API HAWK)   : {t_api:.2f} s")
+        tabela_min.add_row("Tempo Mínimo (API HAWK)", f"[bold green]{t_api:.2f} s[/]")
         diferenca = abs(t_local - t_api)
         if diferenca < 0.05:
-            print("  -> CONFERÊNCIA: Valores coincidem perfeitamente! (Divergência < 0.05s)")
+            tabela_min.add_row("Conferência", "[bold green]Valores coincidem perfeitamente! (< 0.05s)[/]")
         else:
-            print(f"  -> ATENÇÃO: Divergência de {diferenca:.2f}s entre API e cálculo local.")
+            tabela_min.add_row("Conferência", f"[bold yellow]Divergência de {diferenca:.2f}s entre API e local[/]")
     else:
-        print("  -> Tempo Mínimo (API HAWK)   : Indisponível (modo offline ou sem conexão)")
-    print("=" * 65 + "\n")
+        tabela_min.add_row("Tempo Mínimo (API HAWK)", "[dim]Indisponível (modo offline)[/]")
+
+    formatacao.console.print(
+        formatacao.Panel(
+            tabela_min,
+            title="[bold cyan]RESULTADOS DO CÁLCULO DE TEMPO MÍNIMO (T_min = L / v_ref + margem)[/]",
+            border_style="cyan",
+        )
+    )
 
     _ultimos_calculos["cruzamento_id"] = cruzamento_id
     _ultimos_calculos["cruzamento_nome"] = cruzamento_nome
@@ -158,22 +166,24 @@ def menu_estudo_limites() -> None:
 
     T_min = modelo.tempo_minimo(L)
 
-    print("\n" + "-" * 65)
-    print("  LIMITE 1: CHEGADA AO OUTRO LADO DA VIA (CONTINUIDADE)")
-    print("  lim_{t -> T-} x(t) = L")
-    print("-" * 65)
-    print(f"  Para L = {L:.1f} m e tempo real de travessia T = {T:.1f} s:")
-    print(f"  x({T:.1f}) = {modelo.posicao(T, L, T):.2f} m.")
-    print("  Interpretação: a trajetória x(t) é contínua no intervalo fechado [0, T].")
-    print("  Ao final do tempo concedido, o pedestre atinge exatamente a calçada oposta.")
+    formatacao.console.rule("[bold cyan]LIMITE 1: CHEGADA AO OUTRO LADO DA VIA (CONTINUIDADE)[/]")
+    formatacao.console.print(
+        formatacao.Panel(
+            f"[bold]lim_{{t -> T-}} x(t) = L[/]\n\n"
+            f"Para L = {L:.1f} m e tempo de travessia T = {T:.1f} s: x({T:.1f}) = [bold green]{modelo.posicao(T, L, T):.2f} m[/].\n"
+            "[green]Interpretação:[/] A trajetória x(t) é contínua no intervalo fechado [0, T].\n"
+            "Ao final do tempo concedido, o pedestre atinge exatamente a calçada oposta.",
+            border_style="green",
+        )
+    )
 
-    print("\n" + "-" * 65)
-    print("  LIMITE 2: VELOCIDADE EXIGIDA PARA CONCLUIR NO PRAZO")
-    print("  v_req(t) = [L - x(t)] / (T_min - t)  quando  t -> T_min-")
-    print("-" * 65)
-    print(f"  Cenário: pedestre lento com T = {T:.1f} s quando o tempo fixo é T_min = {T_min:.2f} s.")
-    print(f"  Posição em t = T_min: x({T_min:.2f}) ≈ {modelo.posicao(T_min, L, T):.2f} m (faltam {L - modelo.posicao(T_min, L, T):.2f} m).")
-    print("\n  Aproximação lateral (h = T_min - t):")
+    formatacao.console.rule("[bold cyan]LIMITE 2: VELOCIDADE EXIGIDA PARA CONCLUIR NO PRAZO[/]")
+    formatacao.console.print(
+        f"[bold]v_req(t) = [L - x(t)] / (T_min - t)[/] quando [bold]t -> T_min-[/]\n"
+        f"Cenário: pedestre lento com T = {T:.1f} s quando o tempo fixo é T_min = {T_min:.2f} s.\n"
+        f"Posição em t = T_min: x({T_min:.2f}) ≈ {modelo.posicao(T_min, L, T):.2f} m (faltam {L - modelo.posicao(T_min, L, T):.2f} m).\n"
+        "\n[yellow]Aproximação lateral (h = T_min - t):[/]"
+    )
 
     hs = (1.0, 0.1, 0.01, 0.001)
     tabela = modelo.tabela_limite(L, T, T_min, hs=hs)
@@ -185,12 +195,17 @@ def menu_estudo_limites() -> None:
         linhas.append([f"{h:g}", f"{t_inst:.4f}", f"{d_rest:.4f} m", f"{v_req:.2f}"])
     formatacao.formatar_tabela(cabecalhos, linhas, alinhamentos=[">", ">", ">", ">"])
 
-    print("\n  INTERPRETAÇÃO DO LIMITE 2:")
-    print("  Se o pedestre ainda não completou a travessia quando o tempo mínimo T_min se")
-    print("  esgota (d(T_min) > 0), a velocidade exigida para não ser atropelado explode")
-    print("  para o infinito (v_req -> +infinito). Como nenhum ser humano consegue correr a")
-    print("  essas velocidades, É ESSE LIMITE QUE JUSTIFICA A REGRA DE EXTENSÃO DO HAWK CROSS.")
-    print("=" * 65 + "\n")
+    formatacao.console.print(
+        formatacao.Panel(
+            "[bold yellow]INTERPRETAÇÃO DO LIMITE 2:[/]\n"
+            "Se o pedestre ainda não completou a travessia quando o tempo mínimo T_min se esgota (d(T_min) > 0), "
+            "a velocidade exigida para não ser atropelado explode para o infinito ([bold red]v_req -> +infinito[/]).\n"
+            "[bold red]Como nenhum ser humano vulnerável consegue correr a essas velocidades, "
+            "É ESSE LIMITE QUE JUSTIFICA A REGRA DE EXTENSÃO DO HAWK CROSS.[/]",
+            title="[bold red]Fundamentação Teórica da Extensão Semafórica[/]",
+            border_style="red",
+        )
+    )
 
     _ultimos_calculos["limites"] = {
         "limite_1_x_T": modelo.posicao(T, L, T),
@@ -212,29 +227,37 @@ def menu_analise_derivadas() -> None:
     t_meio = T / 2.0
     v_media = L / T
 
-    print("\n" + "=" * 65)
-    print("  DERIVADAS DA TRAJETÓRIA DO PEDESTRE")
-    print("=" * 65)
-    print(f"  Largura da Via (L)              : {L:.2f} m")
-    print(f"  Tempo Total de Travessia (T)    : {T:.2f} s")
-    print(f"  Velocidade Média (L / T)        : {v_media:.3f} m/s")
-    print("-----------------------------------------------------------------")
-    print("  Função Velocidade:  v(t) = x'(t) = (6L/T) * (s - s²), onde s = t/T")
-    print("  Função Aceleração:  a(t) = v'(t) = (6L/T²) * (1 - 2s)")
-    print("-----------------------------------------------------------------")
-    print(f"  Velocidade Inicial v(0)         : {modelo.velocidade(0, L, T):.3f} m/s (Repouso inicial)")
-    print(f"  Velocidade no Meio v(T/2)       : {modelo.velocidade(t_meio, L, T):.3f} m/s (Pico máximo)")
-    print(f"  Velocidade Final v(T)           : {modelo.velocidade(T, L, T):.3f} m/s (Repouso final)")
-    print(f"  Aceleração no Meio a(T/2)       : {modelo.aceleracao(t_meio, L, T):.4f} m/s² (a = 0)")
-    print("-----------------------------------------------------------------")
-    print(f"  Ponto Crítico (v'(t) = a(t) = 0): t = T/2 = {t_meio:.2f} s")
-    print(f"  Velocidade Máxima (v_max)       : 1,5 * (L / T) = {v_max:.3f} m/s")
-    print("=" * 65)
-    print("\n  INTERPRETAÇÃO FÍSICA:")
-    print("  O pedestre parte do repouso (v(0) = 0), acelera durante a primeira metade da via")
-    print("  (a > 0), atinge a velocidade máxima de 1,5*v_médio exatamente no centro da faixa")
-    print("  (onde a = 0), e desacelera na segunda metade (a < 0) até parar na calçada oposta.")
-    print("=" * 65 + "\n")
+    tabela_der = formatacao.Table(show_header=False, box=None)
+    tabela_der.add_column("Métrica / Ponto", style="bold yellow", width=32)
+    tabela_der.add_column("Valor", style="white")
+    tabela_der.add_row("Largura da Via (L)", f"{L:.2f} m")
+    tabela_der.add_row("Tempo Total de Travessia (T)", f"{T:.2f} s")
+    tabela_der.add_row("Velocidade Média (L / T)", f"{v_media:.3f} m/s")
+    tabela_der.add_row("Função Velocidade", "v(t) = x'(t) = (6L/T) * (s - s²), s = t/T")
+    tabela_der.add_row("Função Aceleração", "a(t) = v'(t) = (6L/T²) * (1 - 2s)")
+    tabela_der.add_row("Velocidade Inicial v(0)", f"{modelo.velocidade(0, L, T):.3f} m/s (Repouso inicial)")
+    tabela_der.add_row("Velocidade no Meio v(T/2)", f"[bold green]{modelo.velocidade(t_meio, L, T):.3f} m/s (Pico máximo)[/]")
+    tabela_der.add_row("Velocidade Final v(T)", f"{modelo.velocidade(T, L, T):.3f} m/s (Repouso final)")
+    tabela_der.add_row("Aceleração no Meio a(T/2)", f"{modelo.aceleracao(t_meio, L, T):.4f} m/s² (a = 0)")
+    tabela_der.add_row("Ponto Crítico (a(t) = 0)", f"t = T/2 = [cyan]{t_meio:.2f} s[/]")
+    tabela_der.add_row("Velocidade Máxima (v_max)", f"[bold green]1,5 * (L / T) = {v_max:.3f} m/s[/]")
+
+    formatacao.console.print(
+        formatacao.Panel(
+            tabela_der,
+            title="[bold cyan]DERIVADAS DA TRAJETÓRIA DO PEDESTRE[/]",
+            border_style="cyan",
+        )
+    )
+    formatacao.console.print(
+        formatacao.Panel(
+            "O pedestre parte do repouso (v(0) = 0), acelera durante a primeira metade da via (a > 0), "
+            "atinge a velocidade máxima de 1,5 * v_médio exatamente no centro da faixa (onde a = 0), "
+            "e desacelera na segunda metade (a < 0) até parar na calçada oposta.",
+            title="[bold green]Interpretação Física[/]",
+            border_style="green",
+        )
+    )
 
     _ultimos_calculos["derivadas"] = {
         "v_media": round(v_media, 4),
@@ -265,27 +288,32 @@ def menu_analise_integrais() -> None:
     q_ext = modelo.fila(T, lam)
     custo = modelo.custo_extensao(T_min, T, lam)
 
-    print("\n" + "=" * 65)
-    print("  INTEGRAIS E GRANDEZAS ACUMULADAS")
-    print("=" * 65)
-    print("  1. DESLOCAMENTO TOTAL DO PEDESTRE:")
-    print(f"     ∫₀ᵀ v(t) dt = x(T) - x(0) = L = {desloc:.2f} metros")
-    print("     Interpretação: a área sob a curva de velocidade instantânea recupera")
-    print("     com precisão analítica exata a extensão total da faixa de pedestres.")
-    print("-----------------------------------------------------------------")
-    print("  2. FILA DE VEÍCULOS RETIDA NO VERMELHO [PREMISSA SIMULADA]:")
-    print(f"     Q(t_fase) = ∫₀^{{t_fase}} λ dt = λ · t_fase  (com λ = {lam:.2f} veíc/s)")
-    print(f"     -> Fila ao fim do tempo normal (T_min = {T_min:.2f} s) : {q_normal:.2f} veículos")
-    print(f"     -> Fila ao fim do tempo estendido (T = {T:.2f} s)    : {q_ext:.2f} veículos")
-    print(f"     -> Custo da extensão (+{T - T_min:.2f} s)              : +{custo:.2f} veículos na fila")
-    print("=" * 65)
-    print("\n  INTERPRETAÇÃO DO IMPACTO URBANO:")
-    print(f"  Cada segundo de extensão custa apenas {lam:.2f} veículos acumulados.")
-    print(f"  Conceder {T - T_min:.1f} segundos a mais para que um idoso atravesse com segurança")
-    print(f"  custa cerca de {custo:.1f} veículo a mais na fila veicular. O custo urbano é desprezível")
-    print("  diante do benefício da segurança da vida humana.")
-    print("  [AVISO] Premissa simulada de fluxo veicular / Protótipo não homologado.")
-    print("=" * 65 + "\n")
+    tabela_int = formatacao.Table(show_header=False, box=None)
+    tabela_int.add_column("Grandeza Acumulada", style="bold yellow", width=34)
+    tabela_int.add_column("Resultado", style="white")
+    tabela_int.add_row("Deslocamento do Pedestre", f"∫₀ᵀ v(t) dt = [bold green]{desloc:.2f} m[/] (Largura L)")
+    tabela_int.add_row("Taxa de Chegada Simulada (λ)", f"{lam:.2f} veíc/s")
+    tabela_int.add_row("Fila no Tempo Normal (T_min)", f"{q_normal:.2f} veículos")
+    tabela_int.add_row("Fila no Tempo Estendido (T)", f"{q_ext:.2f} veículos")
+    tabela_int.add_row("Custo da Extensão (+tempo)", f"[bold red]+{custo:.2f} veículos na fila[/]")
+
+    formatacao.console.print(
+        formatacao.Panel(
+            tabela_int,
+            title="[bold cyan]INTEGRAIS E GRANDEZAS ACUMULADAS[/]",
+            border_style="cyan",
+        )
+    )
+    formatacao.console.print(
+        formatacao.Panel(
+            f"Cada segundo de extensão retém apenas {lam:.2f} veículos na fila.\n"
+            f"Conceder {T - T_min:.1f} s a mais para a travessia de um idoso custa cerca de [bold]{custo:.1f} veículo[/] a mais.\n"
+            "[green]O custo urbano é desprezível diante do benefício da preservação da vida humana.[/]\n"
+            "[yellow][AVISO] Premissa simulada de fluxo veicular / Protótipo não homologado.[/]",
+            title="[bold green]Impacto e Trade-off Urbano[/]",
+            border_style="green",
+        )
+    )
 
     _ultimos_calculos["integrais"] = {
         "deslocamento": desloc,
@@ -306,7 +334,7 @@ def menu_gerar_graficos_e_dados_api() -> None:
     T_min = modelo.tempo_minimo(L)
 
     # 1. Consulta de dado real da API (GET /relatorios/tempos)
-    print("[1/2] Consultando relatório de tempos da API HAWK...")
+    formatacao.console.print("[yellow][1/2] Consultando relatório de tempos da API HAWK...[/]")
     v_medio_api: float | None = None
     tempo_medio_api: float | None = None
     origem_dados = "Simulação Local (Exemplo de Referência)"
@@ -320,36 +348,44 @@ def menu_gerar_graficos_e_dados_api() -> None:
                 v_medio_api = L / tempo_medio_api
                 origem_dados = "API HAWK (/relatorios/tempos)"
 
-    print("\n" + "-" * 65)
-    print(f"  ANÁLISE DE VELOCIDADE MÉDIA OBSERVADA [{origem_dados}]")
-    print("-" * 65)
+    tabela_api = formatacao.Table(show_header=False, box=None)
+    tabela_api.add_column("Métrica", style="bold yellow", width=32)
+    tabela_api.add_column("Valor", style="white")
+
     if tempo_medio_api is not None and v_medio_api is not None:
-        print(f"  Tempo Médio Registrado na API : {tempo_medio_api:.2f} s")
-        print(f"  Velocidade Média Observada    : {v_medio_api:.3f} m/s")
-        print(f"  Velocidade de Projeto (v_ref) : {modelo.VELOCIDADE_REF:.2f} m/s")
-        if v_medio_api < modelo.VELOCIDADE_REF:
-            print("  -> Diagnóstico: O público observado caminha abaixo da referência normativa,")
-            print("     comprovando a necessidade de extensão da proteção semafórica.")
-        else:
-            print("  -> Diagnóstico: Velocidade média superior à de projeto para vulneráveis.")
+        tabela_api.add_row("Tempo Médio Registrado na API", f"{tempo_medio_api:.2f} s")
+        tabela_api.add_row("Velocidade Média Observada", f"[bold green]{v_medio_api:.3f} m/s[/]")
+        tabela_api.add_row("Velocidade de Projeto (v_ref)", f"{modelo.VELOCIDADE_REF:.2f} m/s")
+        diag = "Público caminha abaixo da referência (extensão necessária)" if v_medio_api < modelo.VELOCIDADE_REF else "Velocidade média adequada"
+        tabela_api.add_row("Diagnóstico", diag)
     else:
-        # Exemplo simulado da seção 3 do guia
         v_simulado = L / T
-        print(f"  [AVISO] Dados reais da API não disponíveis no momento (ou sem amostras).")
-        print(f"  Utilizando exemplo simulado da Seção 3:")
-        print(f"  Tempo de Travessia (T)        : {T:.1f} s")
-        print(f"  Velocidade Média (L / T)      : {v_simulado:.3f} m/s")
-        print(f"  Comparação com v_ref (0,6 m/s): Pedestre {((modelo.VELOCIDADE_REF - v_simulado) / modelo.VELOCIDADE_REF) * 100:.1f}% mais lento que a norma.")
+        tabela_api.add_row("Status", "[yellow]Dados remotos não disponíveis (usando simulação)[/]")
+        tabela_api.add_row("Tempo de Travessia (T)", f"{T:.1f} s")
+        tabela_api.add_row("Velocidade Média Simulada", f"[bold cyan]{v_simulado:.3f} m/s[/]")
+        tabela_api.add_row("Comparação com v_ref", f"Pedestre {((modelo.VELOCIDADE_REF - v_simulado) / modelo.VELOCIDADE_REF) * 100:.1f}% mais lento que a norma")
+
+    formatacao.console.print(
+        formatacao.Panel(
+            tabela_api,
+            title=f"[bold cyan]ANÁLISE DE VELOCIDADE MÉDIA OBSERVADA [{origem_dados}][/]",
+            border_style="cyan",
+        )
+    )
 
     # 2. Geração dos 3 gráficos técnicos
-    print("\n[2/2] Gerando os 3 gráficos técnicos com matplotlib...")
+    formatacao.console.print("\n[yellow][2/2] Gerando os 3 gráficos técnicos com matplotlib...[/]")
     caminhos = graficos.gerar_todos_os_graficos(L=L, T=T, T_min=T_min, lam=lam)
 
     formatacao.imprimir_sucesso("Os 3 gráficos técnicos foram salvos com sucesso em 'graficos/':")
+    tabela_graf = formatacao.Table(show_header=True, header_style="bold magenta", box=None)
+    tabela_graf.add_column("#", style="bold yellow", width=4)
+    tabela_graf.add_column("Arquivo", style="bold green")
+    tabela_graf.add_column("Tamanho", style="white")
     for idx, cam in enumerate(caminhos, start=1):
         tamanho_kb = cam.stat().st_size / 1024.0
-        print(f"  [{idx}] {cam.name:<30} ({tamanho_kb:.1f} KB)")
-    print()
+        tabela_graf.add_row(str(idx), cam.name, f"{tamanho_kb:.1f} KB")
+    formatacao.console.print(tabela_graf)
 
     _ultimos_calculos["dado_real_api"] = {
         "origem": origem_dados,
@@ -361,36 +397,54 @@ def menu_gerar_graficos_e_dados_api() -> None:
 
 
 def menu_matematica() -> None:
-    """Menu principal do módulo de modelagem matemática (5 opções com match/case)."""
+    """Menu principal do módulo de modelagem matemática (5 opções com match/case e formatação Rich)."""
+    opcoes = [
+        ("1", "Tempo Mínimo Seguro (Local vs API HAWK)"),
+        ("2", "Estudo dos Limites (Continuidade e Assíntota v_req -> +infinito)"),
+        ("3", "Análise de Derivadas (Velocidade v(t), Aceleração a(t) e v_max)"),
+        ("4", "Grandezas Acumuladas por Integrais (Deslocamento L e Fila Q(t))"),
+        ("5", "Gerar os 3 Gráficos (.png) e Analisar Dado Real da API"),
+        ("0", "Voltar ao menu principal"),
+    ]
     while True:
-        formatacao.imprimir_titulo("Modelagem Matemática — HAWK Cross (CitizenTech)")
-        print("  [AVISO] Premissas simuladas de tráfego | Protótipo acadêmico não homologado\n")
-        print("  [1] Tempo Mínimo Seguro (Local vs API HAWK)")
-        print("  [2] Estudo dos Limites (Continuidade e Assíntota v_req -> +infinito)")
-        print("  [3] Análise de Derivadas (Velocidade v(t), Aceleração a(t) e v_max)")
-        print("  [4] Grandezas Acumuladas por Integrais (Deslocamento L e Fila Q(t))")
-        print("  [5] Gerar os 3 Gráficos (.png) e Analisar Dado Real da API")
-        print("  [0] Voltar ao menu principal\n")
+        formatacao.limpar_tela()
+        formatacao.titulo_terminal(
+            "MODELAGEM MATEMÁTICA — HAWK CROSS",
+            "Estudo Analítico de Travessia e Impacto no Tráfego (CitizenTech)",
+            "bold cyan",
+        )
+        formatacao.exibir_menu_painel(
+            "MENU DE MODELAGEM MATEMÁTICA",
+            opcoes,
+            border_style="cyan",
+            rodape_info="[AVISO] Premissas simuladas de tráfego | Protótipo acadêmico não homologado",
+        )
 
-        try:
-            entrada = input("Opção desejada: ").strip()
-            opcao = int(entrada)
-        except ValueError:
-            print("Entrada inválida. Digite um número de 0 a 5.")
-            continue
+        opcao = input("\nEscolha uma opção: ").strip()
 
         match opcao:
-            case 1:
+            case "1":
+                formatacao.limpar_tela()
                 calcular_tempo_minimo_comparativo()
-            case 2:
+                formatacao.pausar()
+            case "2":
+                formatacao.limpar_tela()
                 menu_estudo_limites()
-            case 3:
+                formatacao.pausar()
+            case "3":
+                formatacao.limpar_tela()
                 menu_analise_derivadas()
-            case 4:
+                formatacao.pausar()
+            case "4":
+                formatacao.limpar_tela()
                 menu_analise_integrais()
-            case 5:
+                formatacao.pausar()
+            case "5":
+                formatacao.limpar_tela()
                 menu_gerar_graficos_e_dados_api()
-            case 0:
+                formatacao.pausar()
+            case "0":
                 break
             case _:
-                print("Opção inválida. Escolha entre 0 e 5.")
+                formatacao.console.print("[bold red]Opção inválida. Tente novamente.[/]")
+                formatacao.pausar("Pressione Enter para continuar...")

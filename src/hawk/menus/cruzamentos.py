@@ -36,11 +36,18 @@ def selecionar_cruzamento(mensagem: str = "Selecione o cruzamento") -> str | Non
             except ValueError as e:
                 print(f"Erro: {e} Tente novamente.")
 
-    print(f"\n--- {mensagem} ---")
+    formatacao.console.rule(f"[bold cyan]{mensagem}[/]")
+    tabela_selecao = formatacao.Table(show_header=True, header_style="bold magenta", box=None)
+    tabela_selecao.add_column("#", style="bold yellow", width=4)
+    tabela_selecao.add_column("Nome", style="white")
+    tabela_selecao.add_column("Bairro", style="cyan")
+    tabela_selecao.add_column("ID", style="dim")
     for i, c in enumerate(cruzamentos, start=1):
-        print(f"  [{i}] {c.get('nome', 'Sem nome')} ({c.get('bairro', 'Sem bairro')}) - ID: {c.get('id')}")
-    print("  [D] Digitar ID manualmente")
-    print("  [0] Cancelar")
+        cid = str(c.get("id", ""))
+        cid_curto = f"{cid[:8]}..." if len(cid) > 10 else cid
+        tabela_selecao.add_row(str(i), str(c.get("nome", "Sem nome")), str(c.get("bairro", "Sem bairro")), cid_curto)
+    formatacao.console.print(tabela_selecao)
+    formatacao.console.print("[yellow]  [D] Digitar ID manualmente   [0] Cancelar[/]\n")
 
     while True:
         opcao = input("Escolha o número ou [D] para digitar: ").strip().upper()
@@ -381,35 +388,45 @@ def excluir() -> None:
 
 
 def menu_cruzamentos() -> None:
-    """Menu interativo para gerenciamento de cruzamentos com match/case."""
+    """Menu interativo para gerenciamento de cruzamentos com match/case e formatação Rich."""
+    opcoes = [
+        ("1", "Listar cruzamentos"),
+        ("2", "Consultar cruzamento por ID"),
+        ("3", "Cadastrar novo cruzamento"),
+        ("4", "Atualizar cruzamento existente"),
+        ("5", "Excluir cruzamento"),
+        ("0", "Voltar ao menu principal"),
+    ]
     while True:
-        formatacao.imprimir_titulo("Gerenciamento de Cruzamentos")
-        print("  [1] Listar cruzamentos")
-        print("  [2] Consultar cruzamento por ID")
-        print("  [3] Cadastrar novo cruzamento")
-        print("  [4] Atualizar cruzamento existente")
-        print("  [5] Excluir cruzamento")
-        print("  [0] Voltar ao menu principal\n")
+        formatacao.limpar_tela()
+        formatacao.titulo_terminal("GERENCIAMENTO DE CRUZAMENTOS", "CRUD e Cadastro de Faixas Semafóricas", "bold cyan")
+        formatacao.exibir_menu_painel("MENU DE CRUZAMENTOS", opcoes, border_style="cyan")
 
-        try:
-            entrada = input("Opção desejada: ").strip()
-            opcao = int(entrada)
-        except ValueError:
-            print("Entrada inválida. Digite um número de 0 a 5.")
-            continue
+        opcao = input("\nEscolha uma opção: ").strip()
 
         match opcao:
-            case 1:
+            case "1":
+                formatacao.limpar_tela()
                 listar()
-            case 2:
+                formatacao.pausar()
+            case "2":
+                formatacao.limpar_tela()
                 consultar()
-            case 3:
+                formatacao.pausar()
+            case "3":
+                formatacao.limpar_tela()
                 cadastrar()
-            case 4:
+                formatacao.pausar()
+            case "4":
+                formatacao.limpar_tela()
                 atualizar()
-            case 5:
+                formatacao.pausar()
+            case "5":
+                formatacao.limpar_tela()
                 excluir()
-            case 0:
+                formatacao.pausar()
+            case "0":
                 break
             case _:
-                print("Opção inválida. Escolha entre 0 e 5.")
+                formatacao.console.print("[bold red]Opção inválida. Tente novamente.[/]")
+                formatacao.pausar("Pressione Enter para continuar...")

@@ -55,16 +55,25 @@ def selecionar_ocorrencia(mensagem: str = "Selecione a ocorrência") -> str | No
             except ValueError as e:
                 print(f"Erro: {e} Digite um hexadecimal válido.")
 
-    print(f"\n--- {mensagem} ---")
+    formatacao.console.rule(f"[bold cyan]{mensagem}[/]")
+    tabela_sel = formatacao.Table(show_header=True, header_style="bold magenta", box=None)
+    tabela_sel.add_column("#", style="bold yellow", width=4)
+    tabela_sel.add_column("Tipo", style="white")
+    tabela_sel.add_column("Prioridade", style="cyan")
+    tabela_sel.add_column("Situação", style="green")
+    tabela_sel.add_column("ID", style="dim")
     for i, o in enumerate(ocorrencias, start=1):
-        print(
-            f"  [{i}] Tipo: {o.get('tipo', 'Sem tipo')} | "
-            f"Prioridade: {o.get('prioridade')} | "
-            f"Situação: {o.get('situacao')} | "
-            f"ID: {o.get('id')}"
+        oid = str(o.get("id", ""))
+        oid_curto = f"{oid[:8]}..." if len(oid) > 10 else oid
+        tabela_sel.add_row(
+            str(i),
+            str(o.get("tipo", "Sem tipo")),
+            str(o.get("prioridade", "-")),
+            str(o.get("situacao", "-")),
+            oid_curto,
         )
-    print("  [D] Digitar ID manualmente")
-    print("  [0] Cancelar")
+    formatacao.console.print(tabela_sel)
+    formatacao.console.print("[yellow]  [D] Digitar ID manualmente   [0] Cancelar[/]\n")
 
     while True:
         opcao = input("Escolha o número ou [D] para digitar: ").strip().upper()
@@ -429,38 +438,50 @@ def excluir() -> None:
 
 
 def menu_ocorrencias() -> None:
-    """Menu interativo para gerenciamento de ocorrências com match/case."""
+    """Menu interativo para gerenciamento de ocorrências com match/case e formatação Rich."""
+    opcoes = [
+        ("1", "Listar ocorrências"),
+        ("2", "Consultar ocorrência por ID"),
+        ("3", "Registrar nova ocorrência"),
+        ("4", "Atualizar ocorrência (completa - PUT)"),
+        ("5", "Mudar situação da ocorrência (PATCH)"),
+        ("6", "Excluir ocorrência"),
+        ("0", "Voltar ao menu principal"),
+    ]
     while True:
-        formatacao.imprimir_titulo("Gerenciamento de Ocorrências")
-        print("  [1] Listar ocorrências")
-        print("  [2] Consultar ocorrência por ID")
-        print("  [3] Registrar nova ocorrência")
-        print("  [4] Atualizar ocorrência (completa - PUT)")
-        print("  [5] Mudar situação da ocorrência (PATCH)")
-        print("  [6] Excluir ocorrência")
-        print("  [0] Voltar ao menu principal\n")
+        formatacao.limpar_tela()
+        formatacao.titulo_terminal("GERENCIAMENTO DE OCORRÊNCIAS", "Controle de Falhas e Alertas Semafóricos", "bold cyan")
+        formatacao.exibir_menu_painel("MENU DE OCORRÊNCIAS", opcoes, border_style="cyan")
 
-        try:
-            entrada = input("Opção desejada: ").strip()
-            opcao = int(entrada)
-        except ValueError:
-            print("Entrada inválida. Digite um número de 0 a 6.")
-            continue
+        opcao = input("\nEscolha uma opção: ").strip()
 
         match opcao:
-            case 1:
+            case "1":
+                formatacao.limpar_tela()
                 listar()
-            case 2:
+                formatacao.pausar()
+            case "2":
+                formatacao.limpar_tela()
                 consultar()
-            case 3:
+                formatacao.pausar()
+            case "3":
+                formatacao.limpar_tela()
                 registrar()
-            case 4:
+                formatacao.pausar()
+            case "4":
+                formatacao.limpar_tela()
                 atualizar_completa()
-            case 5:
+                formatacao.pausar()
+            case "5":
+                formatacao.limpar_tela()
                 mudar_situacao()
-            case 6:
+                formatacao.pausar()
+            case "6":
+                formatacao.limpar_tela()
                 excluir()
-            case 0:
+                formatacao.pausar()
+            case "0":
                 break
             case _:
-                print("Opção inválida. Escolha entre 0 e 6.")
+                formatacao.console.print("[bold red]Opção inválida. Tente novamente.[/]")
+                formatacao.pausar("Pressione Enter para continuar...")
