@@ -209,3 +209,11 @@ O projeto conta com um arquivo [`prompts.md`](prompts.md) que documenta todas as
 - **Disciplinas:**
   - *Computational Thinking with Python*
   - *Differentiated Problem Solving*
+ 
+---
+
+## Link do Swagger UI
+
+https://hawk-api-fsgy.onrender.com/docs
+
+---
