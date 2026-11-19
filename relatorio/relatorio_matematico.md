@@ -1,8 +1,5 @@
 # Relatório de Modelagem Matemática — HAWK Cross (CitizenTech)
 
-> **Aviso Legal e Limites do Projeto:**  
-> Este documento constitui uma **proposta acadêmica** desenvolvida para as disciplinas de *Computational Thinking with Python* e *Matemática*. O sistema HAWK Cross é uma prova de conceito de tecnologia assistiva urbana (CitizenTech) para cruzamentos semafóricos adaptativos. **Não é um sistema certificado nem homologado para segurança viária**, não comanda diretamente semáforos reais em vias públicas e **não realiza qualquer reconhecimento facial, biometria ou rastreamento individual de pessoas**. As taxas de tráfego veicular utilizadas são premissas simuladas de engenharia de tráfego.
-
 ---
 
 ## 1. Problema Urbano e Proposta de Valor
