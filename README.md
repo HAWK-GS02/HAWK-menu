@@ -195,21 +195,16 @@ O projeto conta com um arquivo [`prompts.md`](prompts.md) que documenta todas as
 
 ---
 
-## Integrantes do Grupo
+## Equipe HAWK
 
-| RM | Nome |
-|----|------|
-| 570860 | Esther Tozzo |
-| 570316 | Izabela Pordeus |
-| 569949 | João Victor Santos Souza |
-| 571458 | Matheus Lopes Lima |
-| 570863 | Felipe de Oliveira Zimmermann |
+| Integrante | RM |
+|---|---:|
+| Esther dos Santos de Almeida Tozzo | 570860 |
+| Felipe de Oliveira Zimmermann | 570863 |
+| Izabela Pordeus de Almeida | 570316 |
+| João Victor Santos Souza | 569949 |
+| Matheus Lopes Lima | 571458 |
 
-- **Projeto Acadêmico — FIAP**
-- **Disciplinas:**
-  - *Computational Thinking with Python*
-  - *Differentiated Problem Solving*
- 
 ---
 
 ## Link do Swagger UI
@@ -217,3 +212,9 @@ O projeto conta com um arquivo [`prompts.md`](prompts.md) que documenta todas as
 https://hawk-api-fsgy.onrender.com/docs
 
 ---
+
+<p align="center">
+  HAWK — A cidade que se adapta a você.
+  <br/>
+  FIAP • Global Solution 2026.2
+</p>
