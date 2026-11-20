@@ -2,7 +2,7 @@
 
 Aplicação integrada de console em Python para gerenciamento de cruzamentos semafóricos adaptativos, simulação de travessias acessíveis, persistência local e modelagem matemática.
 
-A modelagem matemática do projeto é reduzida ao essencial para justificar a proteção aos pedestres: limites de velocidade requerida ($v_{req} \to +\infty$), perfil suave via derivadas ($v(t) = x'(t)$ com pico em $t = T/2$), e cálculo de grandezas acumuladas por integrais (deslocamento $\int v\,dt = L$ e fila simulada $\Delta Q \approx 1{,}3$ veículo).
+A modelagem matemática do projeto foi feita para justificar a proteção aos pedestres: limites de velocidade requerida ($v_{req} \to +\infty$), perfil suave via derivadas ($v(t) = x'(t)$ com pico em $t = T/2$), e cálculo de grandezas acumuladas por integrais (deslocamento $\int v\,dt = L$ e fila simulada $\Delta Q \approx 1{,}3$ veículo).
 
 ---
 
